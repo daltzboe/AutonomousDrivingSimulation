@@ -15,7 +15,7 @@ def main() -> None:
     except ImportError as exc:
         raise SystemExit(
             "Pygame is required for the visual demo. Install it with "
-            "'python -m pip install -e ".[demo]" and try again."
+            'python -m pip install -e ".[demo]" and try again.'
         ) from exc
 
     from autodrive_sim.controllers import ControlCommand
