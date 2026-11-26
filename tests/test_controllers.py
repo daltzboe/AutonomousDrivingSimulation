@@ -86,7 +86,7 @@ class SteeringObstacleAvoidanceControllerTests(unittest.TestCase):
 
     def test_steering_controller_passes_on_opposite_side_of_edge_obstacle(self) -> None:
         road = Road(lane_width=4.8)
-        vehicle = Vehicle(x=70.0, y=road.center_y(70.0), speed=10.0)
+        vehicle = Vehicle(x=80.0, y=road.center_y(80.0), speed=10.0)
         obstacle = Obstacle(
             x=100.0, y=road.center_y(100.0) + 1.0, radius=0.35
         )
