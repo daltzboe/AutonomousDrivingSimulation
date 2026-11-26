@@ -170,7 +170,9 @@ class SteeringObstacleAvoidanceController:
             1.0 - self._smoothstep((x - peak_end) / (end - peak_end))
         )
 
-    def _choose_offset(self, obstacle, obstacles, road: Road) -> float | None:
+    def _choose_offset(
+        self, obstacle, obstacles, road: Road, vehicle_y: float
+    ) -> float | None:
         maximum_offset = (
             road.lane_width / 2.0
             - self.vehicle_radius_m
@@ -204,7 +206,7 @@ class SteeringObstacleAvoidanceController:
         return min(
             candidates,
             key=lambda value: (
-                abs(road.center_y(obstacle.x) + value - self._vehicle_y),
+                abs(road.center_y(obstacle.x) + value - vehicle_y),
                 -value,
             ),
         )
@@ -227,8 +229,7 @@ class SteeringObstacleAvoidanceController:
             return self.lane_follower.control(vehicle, road)
 
         obstacle = min(relevant, key=lambda item: item.x - vehicle.x)
-        self._vehicle_y = vehicle.y
-        offset = self._choose_offset(obstacle, relevant, road)
+        offset = self._choose_offset(obstacle, relevant, road, vehicle.y)
         if offset is None:
             return ObstacleAvoidanceController(
                 lane_follower=self.lane_follower, sensor=self.sensor
