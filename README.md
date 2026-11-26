@@ -76,6 +76,7 @@ The visual demo starts in autopilot mode. Switch to manual mode to demonstrate s
 
 For a short presentation walkthrough and research-status notes, see [docs/DEMO_GUIDE.md](docs/DEMO_GUIDE.md).
 For the vehicle equations, pure-pursuit steering model, and metric definitions, see [docs/MODEL_AND_METRICS.md](docs/MODEL_AND_METRICS.md).
+For the planned CARLA/CNN experiment design and fair evaluation protocol, see [docs/RESEARCH_PLAN.md](docs/RESEARCH_PLAN.md).
 
 ## Tests
 
