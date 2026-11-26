@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "autodrive-simulation"
-version = "0.1.0"
-description = "CARLA-based autonomous driving controller comparison research project"
+version = "0.2.0"
+description = "Lightweight autonomous-driving research simulator with a CARLA integration path"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -14,7 +14,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["pytest>=8.0"]
+demo = ["pygame>=2.5"]
+
+[project.scripts]
+autodrive-demo = "autodrive_sim.demo:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
