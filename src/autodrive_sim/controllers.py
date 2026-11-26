@@ -26,16 +26,17 @@ class ControlCommand:
 
 @dataclass
 class LaneFollowingController:
-    """A transparent look-ahead lane follower used as the rule-based baseline.
+    """Pure-pursuit lane follower used as the rule-based baseline.
 
-    Steering combines road-heading error with lateral position error. A
-    proportional speed controller keeps the vehicle near the target speed.
-    This is a baseline controller, not a production driving system.
+    The controller aims at a point ahead on the lane center line, converts
+    the target-point geometry into a bicycle-model steering angle, and uses
+    proportional speed control. It is an educational baseline, not a
+    production driving system.
     """
 
     target_speed_mps: float = 10.0
     lookahead_m: float = 9.0
-    steering_gain: float = 1.8
+    steering_gain: float = 1.0
     speed_gain: float = 0.35
 
     def __post_init__(self) -> None:
@@ -54,16 +55,13 @@ class LaneFollowingController:
         """Compute a steering and speed command from the current vehicle state."""
         preview_x = vehicle.x + self.lookahead_m
         target_y = road.center_y(preview_x)
-        desired_heading = math.atan2(
-            target_y - vehicle.y, self.lookahead_m
+        alpha = _wrap_angle(
+            math.atan2(target_y - vehicle.y, self.lookahead_m) - vehicle.yaw
         )
-        heading_error = _wrap_angle(desired_heading - vehicle.yaw)
-        lateral_error = road.center_y(vehicle.x) - vehicle.y
-        lateral_correction = math.atan2(
-            lateral_error, self.lookahead_m
-        )
+        curvature = 2.0 * math.sin(alpha) / self.lookahead_m
+        steering_angle = math.atan(vehicle.wheelbase * curvature)
         steering = _clamp(
-            self.steering_gain * (heading_error + lateral_correction),
+            self.steering_gain * steering_angle / vehicle.max_steering_angle,
             -1.0,
             1.0,
         )
