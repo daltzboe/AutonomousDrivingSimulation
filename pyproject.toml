@@ -19,6 +19,7 @@ demo = ["pygame>=2.5"]
 
 [project.scripts]
 autodrive-demo = "autodrive_sim.demo:main"
+autodrive-benchmark = "autodrive_sim.benchmark:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
