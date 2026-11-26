@@ -188,6 +188,8 @@ class SteeringObstacleAvoidanceController:
         for sign in (-1.0, 1.0):
             offset = sign * required_clearance
             target_y = road.center_y(obstacle.x) + offset
+            if abs(target_y - obstacle.y) < required_clearance:
+                continue
             blocked = any(
                 other is not obstacle
                 and abs(other.x - obstacle.x)
