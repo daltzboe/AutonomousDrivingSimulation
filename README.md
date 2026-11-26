@@ -52,6 +52,14 @@ You can also use the installed command:
 autodrive-demo
 ```
 
+Run repeatable headless baseline episodes and export metrics plus telemetry:
+
+```powershell
+python -m autodrive_sim.benchmark --episodes 3 --output results/baseline_summary.json --telemetry-dir results/telemetry
+```
+
+This creates one CSV telemetry file per episode and a JSON summary. The CSV contains timestamp, position, heading, speed, control inputs, and lane deviation. It is useful for inspecting baseline behavior and building later data pipelines; it does not contain camera images and is not yet an imitation-learning dataset.
+
 ### Demo controls
 
 | Key | Action |
@@ -80,7 +88,7 @@ Or run it with pytest:
 python -m pytest
 ```
 
-Tests cover metric calculations, vehicle dynamics, road geometry, controller outputs, episode progression, obstacle contacts, and reset behavior.
+The suite contains 37 automated tests covering metric calculations, vehicle dynamics, road geometry, controller outputs, episode progression, obstacle contacts, benchmark execution, telemetry export, and reset behavior.
 
 ## Evaluation metrics
 
@@ -111,6 +119,7 @@ src/
       vehicle.py
 tests/
   test_metrics.py
+  test_benchmark.py
   test_controllers.py
   test_telemetry.py
   simulator/
