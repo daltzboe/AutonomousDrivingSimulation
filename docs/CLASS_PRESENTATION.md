@@ -2,46 +2,45 @@
 
 ## Suggested project title
 
-**Autonomous Driving Simulation: Comparing Lane Following and Sensor-Based Emergency Braking**
+**Autonomous Driving Simulation: Lane Following, Emergency Braking, and Obstacle Avoidance**
 
 ## One-sentence project summary
 
-This project builds a repeatable 2D autonomous-driving simulator and compares a pure-pursuit baseline controller with a range-sensor safety layer under controlled obstacle scenarios.
+This project builds a repeatable 2D autonomous-driving simulator and compares pure-pursuit lane following, range-sensor emergency braking, and a steering-based local obstacle-avoidance planner under controlled scenarios.
 
 ## Research question
 
-Can a simple range-sensor emergency-braking layer reduce collisions compared with a pure-pursuit lane-following baseline, and what trade-off does it create in route completion?
+How do pure-pursuit lane following, emergency braking, and local steering-based obstacle avoidance compare in collision events and route completion?
 
 ## System architecture
 
 ```mermaid
 flowchart TD
     Road[Curved road model] --> Sim[2D vehicle simulator]
-    Vehicle[Vehicle state] --> Controller[Controller]
+    Vehicle[Vehicle state] --> Controller[Lane-following controller]
     Sim --> Vehicle
     Vehicle --> Controller
     Obstacles[Static obstacle layout] --> Sensor[Geometric range sensor]
-    Controller --> Commands[Throttle / brake / steering]
-    Sensor --> Safety[Emergency-braking layer]
-    Controller --> Safety
-    Safety --> Commands
+    Controller --> Planner[Steering obstacle-avoidance planner]
+    Sensor --> Planner
+    Planner --> Commands[Throttle / brake / steering]
     Commands --> Sim
     Sim --> Metrics[Metrics and CSV telemetry]
     Metrics --> Report[JSON experiment report]
 ```
 
-The baseline controller computes lane-following steering and speed commands. The safety controller uses the same baseline command but can override throttle with full braking when a relevant obstacle is within the estimated stopping distance plus a safety margin.
+The baseline controller computes lane-following steering and speed commands. The safety controller can override throttle with full braking when a relevant obstacle is too close. The steering controller chooses a collision-clear lateral offset, tracks a smooth bypass path, and returns toward lane center; if the road is too narrow to pass safely, it falls back to braking.
 
 ## Suggested 8-slide structure
 
 1. **Motivation:** Why autonomous-driving controllers need consistent testing before more advanced models are introduced.
-2. **Research question:** Compare a lane-following baseline with a sensor-based safety layer.
+2. **Research question:** Compare lane following, emergency braking, and steering-based obstacle avoidance.
 3. **Simulator design:** Curved road, kinematic bicycle vehicle, fixed time step, obstacles, and telemetry.
-4. **Controller design:** Explain pure pursuit, range sensing, stopping distance, and emergency braking.
+4. **Controller design:** Explain pure pursuit, range sensing, emergency braking, and smooth lateral path offsets.
 5. **Experiment design:** Show the clear, center, edge, outside, and multiple-obstacle scenarios.
-6. **Preliminary result:** Present the one-episode center-obstacle comparison below.
-7. **Limitations:** Explain why stopping safely is not the same as completing the route or planning an alternate path.
-8. **Next steps:** Local path planning, moving traffic, camera perception, learning, and eventual CARLA evaluation.
+6. **Results:** Compare collision events and route completion for all three controllers.
+7. **Limitations:** Explain the simplified static-obstacle model and lane-width assumptions.
+8. **Next steps:** Moving traffic, camera perception, learning, and eventual CARLA evaluation.
 
 ## Preliminary center-obstacle result
 
@@ -76,6 +75,9 @@ python -m autodrive_sim.benchmark --controller baseline --scenario center --epis
 # Run the emergency-braking controller against the same obstacle
 python -m autodrive_sim.benchmark --controller safety --scenario center --episodes 1
 
+# Run the steering-based controller against the same obstacle
+python -m autodrive_sim.benchmark --controller steering --scenario center --episodes 1
+
 # Show that an obstacle outside the path does not trigger a safety stop
 python -m autodrive_sim.benchmark --controller safety --scenario outside --episodes 1
 
@@ -90,14 +92,14 @@ The current GitHub Actions pipeline validates compilation, the unittest suite, t
 - This is a lightweight deterministic 2D simulator, not CARLA.
 - The range sensor uses geometric ray-circle intersections; it is not a physical LiDAR sensor.
 - Obstacles in the current benchmark are stationary.
-- The safety controller brakes but does not steer around obstacles.
+- The emergency-braking controller stops rather than steering around obstacles; the local steering planner is a simplified rule-based bypass, not a general motion planner.
 - No camera-based neural network has been trained yet.
 - No real vehicle is controlled or tested by this project.
 
 ## Development roadmap
 
 1. Complete deterministic obstacle scenarios and paired controller benchmarks.
-2. Implement a local path planner for steering around stationary obstacles.
+2. Stress-test the local steering planner on varied obstacle placements and tighter road geometry.
 3. Add moving vehicles and traffic-following scenarios.
 4. Add a camera observation pipeline and labeled data collection.
 5. Train and evaluate an imitation-learning model.
