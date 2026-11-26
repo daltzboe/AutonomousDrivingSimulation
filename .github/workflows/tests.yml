@@ -26,3 +26,7 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Run pytest suite
         run: python -m pytest
+      - name: Smoke test baseline benchmark CLI
+        run: |
+          python -m autodrive_sim.benchmark --episodes 2 --output /tmp/baseline.json --telemetry-dir /tmp/autodrive-telemetry
+          python -c "import json; from pathlib import Path; report=json.loads(Path('/tmp/baseline.json').read_text()); assert report['episode_count'] == 2; assert len(list(Path('/tmp/autodrive-telemetry').glob('*.csv'))) == 2"
