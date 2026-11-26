@@ -102,7 +102,7 @@ class ObstacleAvoidanceController:
             obstacle
             for obstacle in obstacles
             if abs(obstacle.y - road.center_y(obstacle.x))
-            <= road.lane_width / 2.0 + obstacle.radius
+            <= 0.8 + obstacle.radius
         )
         nearest = self.sensor.scan(vehicle, lane_obstacles).nearest_distance_m
         stopping_distance = (
