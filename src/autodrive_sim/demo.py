@@ -29,7 +29,7 @@ def main() -> None:
     clock = pygame.time.Clock()
     font = pygame.font.SysFont("consolas", 18)
     small_font = pygame.font.SysFont("consolas", 14)
-    title_font = pygame.font.SysFont("consolas", 24, bold=True)
+    title_font = pygame.font.SysFont("consolas", 22, bold=True)
 
     road = Road()
     obstacles = (
@@ -133,21 +133,23 @@ def main() -> None:
         screen.blit(rotated_car, car_rect)
 
         # HUD panel.
-        panel = pygame.Surface((340, 188), pygame.SRCALPHA)
+        panel = pygame.Surface((390, 188), pygame.SRCALPHA)
         panel.fill((8, 14, 22, 220))
         screen.blit(panel, (18, 18))
         draw_text("UTSA | AUTONOMOUS DRIVING", 32, 30, (90, 195, 245), screen, title_font)
         mode = "AUTOPILOT" if autopilot else "MANUAL"
         draw_text(f"MODE       {mode}", 32, 68, (120, 225, 160))
         draw_text(f"SPEED      {simulation.vehicle.speed * 3.6:5.1f} km/h", 32, 94)
-        draw_text(f"LANE ERROR {road.lane_deviation(simulation.vehicle.x, simulation.vehicle.y):5.2f} m", 32, 120)
+        lane_error = road.lane_deviation(simulation.vehicle.x, simulation.vehicle.y)
+        draw_text(f"LANE ERROR {lane_error:5.2f} m", 32, 120)
         draw_text(f"PROGRESS   {simulation.route_completion_pct:5.1f} %", 32, 146)
         draw_text(f"COLLISIONS {simulation.metrics.collision_events}", 32, 172)
 
         status = "PAUSED" if paused else (
             "ROUTE COMPLETE" if simulation.completed else "SIMULATION RUNNING"
         )
-        draw_text(status, 18, height - 62, (120, 225, 160) if not simulation.collision else (255, 130, 110))
+        status_color = (120, 225, 160) if not simulation.collision else (255, 130, 110)
+        draw_text(status, 18, height - 62, status_color)
         draw_text(
             "A: Autopilot  |  Arrows: Manual drive  |  SPACE: Pause  |  R: Reset  |  ESC: Quit",
             18, height - 34, (190, 200, 210), screen, small_font
