@@ -2,18 +2,19 @@
 
 ## Purpose
 
-This benchmark compares two controllers under repeatable conditions in the project's lightweight 2D simulator:
+This benchmark compares three controllers under repeatable conditions in the project's lightweight 2D simulator:
 
 - **Baseline:** pure-pursuit lane following with proportional speed control.
 - **Safety:** the same lane follower plus a geometric range sensor and emergency-braking layer.
+- **Steering:** a local lateral path-offset planner that selects a collision-clear side, steers around the nearest obstacle, and returns toward lane center. It falls back to emergency braking when neither side fits within the road boundaries.
 
-The experiment asks whether the safety layer reduces modeled obstacle contacts, and whether it avoids unnecessary braking when an obstacle is outside the vehicle's path.
+The experiment measures the trade-off between collision avoidance and route completion, and checks whether the controllers respond appropriately to obstacles outside the vehicle's path.
 
 This is a controlled software experiment. It is not a real-vehicle safety validation.
 
 ## Scenario definitions
 
-All scenarios use the same deterministic 500 m curved road, vehicle model, time step, and controller settings.
+All benchmark controllers use the same deterministic 500 m curved road, vehicle model, time step, and controller settings. The benchmark road width is 4.8 m so the configured vehicle and obstacle radii leave a feasible passing corridor; a narrower lane is separately tested to verify safe-stop fallback.
 
 | Scenario | Obstacle layout | Expected question |
 | --- | --- | --- |
@@ -33,8 +34,11 @@ Activate the project's virtual environment and install the development dependenc
 # Baseline against a center-lane obstacle
 python -m autodrive_sim.benchmark --controller baseline --scenario center --episodes 3 --output results/center_baseline.json --telemetry-dir results/center_baseline
 
-# Safety controller against the same obstacle
+# Emergency-braking controller against the same obstacle
 python -m autodrive_sim.benchmark --controller safety --scenario center --episodes 3 --output results/center_safety.json --telemetry-dir results/center_safety
+
+# Steering-based controller against the same obstacle
+python -m autodrive_sim.benchmark --controller steering --scenario center --episodes 3 --output results/center_steering.json --telemetry-dir results/center_steering
 
 # Check lane-edge behavior
 python -m autodrive_sim.benchmark --controller baseline --scenario edge --episodes 3
@@ -47,6 +51,7 @@ python -m autodrive_sim.benchmark --controller safety --scenario outside --episo
 # Compare multiple obstacles
 python -m autodrive_sim.benchmark --controller baseline --scenario multiple --episodes 3
 python -m autodrive_sim.benchmark --controller safety --scenario multiple --episodes 3
+python -m autodrive_sim.benchmark --controller steering --scenario multiple --episodes 3
 ```
 
 Each JSON report contains the selected controller and scenario, aggregate metrics, episode-level metrics, and interpretation notes. CSV telemetry can be written with `--telemetry-dir`.
@@ -64,7 +69,7 @@ A safety-controller episode that stops before an obstacle is intentionally recor
 
 ## Current controller limitations
 
-The safety controller does not plan a path around obstacles. It preserves pure-pursuit steering and applies full braking when the nearest relevant range measurement is within the estimated stopping distance plus a margin. Consequently, a safe stop can prevent a collision but cannot finish a route blocked by an obstacle.
+The emergency-braking controller does not plan a path around obstacles. The steering controller uses a simplified, deterministic lateral offset around stationary circles; it is not a general-purpose motion planner, does not model dynamic obstacles, and does not optimize a full vehicle trajectory. Its collision and boundary checks use simplified circular geometry. If the configured clearance cannot fit within the lane, it delegates to emergency braking.
 
 The range sensor is a deterministic geometric ray model. It does not simulate sensor noise, occlusion, reflections, object classification, or physical LiDAR hardware. Obstacles are stationary; moving traffic is not included in this benchmark.
 
@@ -79,6 +84,6 @@ The range sensor is a deterministic geometric ray model. It does not simulate se
 
 ## Suggested presentation conclusion
 
-The current experiment demonstrates a measurable trade-off: a range-sensor emergency-braking layer can prevent a modeled collision by stopping before a stationary obstacle, but stopping alone does not solve the route-planning problem. The next research milestone is a local obstacle-avoidance planner that can choose a safe lateral path and rejoin the lane, followed by evaluation across varied and moving traffic scenarios.
+The current experiment demonstrates a measurable trade-off: a range-sensor emergency-braking layer can prevent a modeled collision by stopping before a stationary obstacle, but stopping alone does not solve the route-planning problem. The next research milestone is to stress-test the local steering planner with varied obstacle placements, tighter curves, and moving traffic, then compare it with more advanced planning methods.
 
 These findings apply only to the lightweight 2D simulation. They are not CARLA results, real-world driving evidence, or evidence from a trained neural network.
