@@ -1,10 +1,11 @@
 """Baseline autonomous controllers for the lightweight simulation."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import math
 
 from autodrive_sim.simulator.road import Road
 from autodrive_sim.simulator.vehicle import Vehicle
+from autodrive_sim.sensors import RangeSensor
 
 
 def _clamp(value: float, lower: float, upper: float) -> float:
@@ -86,17 +87,11 @@ class ObstacleAvoidanceController:
     baseline, not a complete path-planning or collision-avoidance system.
     """
 
-    lane_follower: LaneFollowingController = None
-    sensor: "RangeSensor" = None
+    lane_follower: LaneFollowingController = field(default_factory=LaneFollowingController)
+    sensor: RangeSensor = field(default_factory=RangeSensor)
     safety_margin_m: float = 3.0
 
     def __post_init__(self) -> None:
-        from autodrive_sim.sensors import RangeSensor
-
-        if self.lane_follower is None:
-            self.lane_follower = LaneFollowingController()
-        if self.sensor is None:
-            self.sensor = RangeSensor()
         if not math.isfinite(self.safety_margin_m) or self.safety_margin_m < 0:
             raise ValueError("safety_margin_m must be finite and non-negative")
 
@@ -107,7 +102,7 @@ class ObstacleAvoidanceController:
             obstacle
             for obstacle in obstacles
             if abs(obstacle.y - road.center_y(obstacle.x))
-            <= road.lane_width / 2.0 + obstacle.radius
+            <= 0.8 + obstacle.radius
         )
         nearest = self.sensor.scan(vehicle, lane_obstacles).nearest_distance_m
         stopping_distance = (
