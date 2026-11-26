@@ -7,7 +7,10 @@ import json
 from pathlib import Path
 import statistics
 
-from autodrive_sim.controllers import ObstacleAvoidanceController
+from autodrive_sim.controllers import (
+    ObstacleAvoidanceController,
+    SteeringObstacleAvoidanceController,
+)
 from autodrive_sim.simulator.road import Road
 from autodrive_sim.simulator.simulation import Obstacle, Simulation
 
@@ -43,13 +46,21 @@ def run_episode(
     scenario_name: str = "clear",
 ) -> dict[str, float | int | None]:
     """Run one scenario and optionally save its telemetry as CSV."""
-    if controller_name not in {"baseline", "safety"}:
-        raise ValueError("controller_name must be 'baseline' or 'safety'")
+    if controller_name not in {"baseline", "safety", "steering"}:
+        raise ValueError(
+            "controller_name must be 'baseline', 'safety', or 'steering'"
+        )
 
-    road = Road()
+    # The benchmark uses a 4.8 m lane so the vehicle can safely pass a
+    # stationary obstacle while remaining within the road boundaries.
+    road = Road(lane_width=4.8)
     obstacles = create_scenario(scenario_name, road)
     controller = (
-        ObstacleAvoidanceController() if controller_name == "safety" else None
+        ObstacleAvoidanceController()
+        if controller_name == "safety"
+        else SteeringObstacleAvoidanceController()
+        if controller_name == "steering"
+        else None
     )
     simulation = Simulation(
         road=road,
@@ -97,8 +108,8 @@ def main() -> None:
         help="number of identical episodes to run (1-100)",
     )
     parser.add_argument(
-        "--controller", choices=("baseline", "safety"), default="baseline",
-        help="baseline pure-pursuit or range-sensor emergency-braking controller",
+        "--controller", choices=("baseline", "safety", "steering"), default="baseline",
+        help="baseline lane follower, emergency braking, or steering-based obstacle avoidance",
     )
     parser.add_argument(
         "--scenario", choices=SCENARIOS, default="clear",
@@ -159,7 +170,8 @@ def main() -> None:
         "episodes": episode_results,
         "notes": [
             "Results are from the deterministic lightweight 2D simulator.",
-            "The safety controller performs emergency braking; it does not steer around obstacles.",
+            "The safety controller performs emergency braking; the steering controller plans a smooth lateral bypass when road width permits.",
+            "Benchmark road width is 4.8 m to provide a feasible passing corridor for the configured vehicle and obstacle sizes.",
             "A safe stop before the destination is reported as incomplete route completion.",
             "These results are not CARLA results or trained neural-network results.",
             "Steering MAE requires expert steering labels.",
