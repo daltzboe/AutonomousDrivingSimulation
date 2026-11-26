@@ -44,11 +44,18 @@ class RangeSensor:
     ray_count: int = 61
 
     def __post_init__(self) -> None:
-        if not math.isfinite(self.field_of_view_deg) or not 0 < self.field_of_view_deg <= 360:
+        if (
+            not math.isfinite(self.field_of_view_deg)
+            or not 0 < self.field_of_view_deg <= 360
+        ):
             raise ValueError("field_of_view_deg must be in (0, 360]")
         if not math.isfinite(self.max_range_m) or self.max_range_m <= 0:
             raise ValueError("max_range_m must be positive and finite")
-        if isinstance(self.ray_count, bool) or not isinstance(self.ray_count, int) or self.ray_count < 2:
+        if (
+            isinstance(self.ray_count, bool)
+            or not isinstance(self.ray_count, int)
+            or self.ray_count < 2
+        ):
             raise ValueError("ray_count must be an integer of at least 2")
 
     def scan(
@@ -72,6 +79,12 @@ class RangeSensor:
             for obstacle in obstacle_list:
                 offset_x = obstacle.x - vehicle.x
                 offset_y = obstacle.y - vehicle.y
+                radius_sq = obstacle.radius * obstacle.radius
+                offset_distance_sq = offset_x * offset_x + offset_y * offset_y
+                if offset_distance_sq <= radius_sq:
+                    nearest = 0.0
+                    continue
+
                 projection = offset_x * direction_x + offset_y * direction_y
                 if projection < 0:
                     continue
@@ -80,7 +93,6 @@ class RangeSensor:
                     offset_x * offset_x + offset_y * offset_y
                     - projection * projection
                 )
-                radius_sq = obstacle.radius * obstacle.radius
                 if perpendicular_sq > radius_sq:
                     continue
 
