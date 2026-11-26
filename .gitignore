@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+.venv/
+venv/
+env/
+.idea/
+*.iml
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Experiment outputs and data (keep large/private generated files out of Git)
+data/
+datasets/
+runs/
+checkpoints/
+models/
+*.pt
+*.pth
+*.onnx
+*.csv
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
