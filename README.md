@@ -91,7 +91,7 @@ Or run it with pytest:
 python -m pytest
 ```
 
-The suite contains 37 automated tests covering metric calculations, vehicle dynamics, road geometry, controller outputs, episode progression, obstacle contacts, benchmark execution, telemetry export, and reset behavior.
+The suite contains 38 automated tests covering metric calculations, vehicle dynamics, road geometry, controller outputs, episode progression, obstacle contacts, benchmark execution, telemetry export, demo rendering, and reset behavior.
 
 ## Evaluation metrics
 
@@ -123,6 +123,7 @@ src/
 tests/
   test_metrics.py
   test_benchmark.py
+  test_demo.py
   test_controllers.py
   test_telemetry.py
   simulator/
