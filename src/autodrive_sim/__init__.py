@@ -6,6 +6,7 @@ from autodrive_sim.metrics import EvaluationMetrics
 from autodrive_sim.simulator.road import Road
 from autodrive_sim.simulator.simulation import Obstacle, Simulation
 from autodrive_sim.simulator.vehicle import Vehicle
+from autodrive_sim.telemetry import TelemetryRecorder, TelemetrySample
 
 __all__ = [
     "ControlCommand",
@@ -16,5 +17,7 @@ __all__ = [
     "Road",
     "Simulation",
     "SimulationConfig",
+    "TelemetryRecorder",
+    "TelemetrySample",
     "Vehicle",
 ]
