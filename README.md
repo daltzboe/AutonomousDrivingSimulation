@@ -1,6 +1,6 @@
 # Autonomous Driving Simulation
 
-A UTSA computer science research project for developing and comparing autonomous-driving controllers in simulation. The repository now includes a lightweight, interactive 2D driving environment that can be demonstrated on a standard Windows laptop. A CARLA integration and camera-based learning pipeline remain planned research stages.
+A UTSA computer science research project for developing and evaluating autonomous-driving controllers in a reproducible simulation. The repository includes a lightweight interactive 2D driving environment, deterministic obstacle scenarios, range-sensor emergency braking, automated tests, and experiment telemetry. CARLA integration and camera-based learning remain planned research stages.
 
 ## Research question
 
@@ -16,6 +16,7 @@ How do different autonomous-driving control approaches compare when evaluated on
 - Stationary obstacle contacts and collision-event counting.
 - Deterministic planar range sensor with configurable field of view, ray count, and range.
 - Optional obstacle-aware safety controller that applies emergency braking using estimated stopping distance.
+- Five deterministic benchmark scenarios: clear road, center-lane obstacle, lane-edge obstacle, outside-path obstacle, and multiple obstacles.
 - Fixed simulation time step and repeatable episode reset.
 - Interactive Pygame top-down view with live speed, lane deviation, route progress, and collision count.
 - Keyboard controls for manual driving and autopilot.
@@ -59,9 +60,16 @@ Run repeatable headless baseline episodes and export metrics plus telemetry:
 ```powershell
 python -m autodrive_sim.benchmark --controller baseline --episodes 3 --output results/baseline_summary.json --telemetry-dir results/telemetry
 python -m autodrive_sim.benchmark --controller safety --episodes 3 --output results/safety_summary.json
+
+# Compare both controllers against a center-lane obstacle
+python -m autodrive_sim.benchmark --controller baseline --scenario center --episodes 3 --output results/center_baseline.json
+python -m autodrive_sim.benchmark --controller safety --scenario center --episodes 3 --output results/center_safety.json
+
+# Test an obstacle outside the vehicle's path
+python -m autodrive_sim.benchmark --controller safety --scenario outside --episodes 3
 ```
 
-Use `--controller safety` to benchmark the range-sensor emergency-braking variant. This creates one CSV telemetry file per episode and a JSON summary. The CSV contains timestamp, position, heading, speed, control inputs, and lane deviation. It is useful for inspecting baseline behavior and building later data pipelines; it does not contain camera images and is not yet an imitation-learning dataset.
+Use `--controller safety` to benchmark the range-sensor emergency-braking variant. Choose a scenario with `--scenario clear|center|edge|outside|multiple`. The `center` and `edge` scenarios challenge the safety controller; `outside` checks that an irrelevant obstacle does not trigger braking. A safe stop before the destination is reported as incomplete route completion, not as a completed trip. Use `--output` for a JSON summary and `--telemetry-dir` to save one CSV per episode. The CSV contains timestamp, position, heading, speed, control inputs, and lane deviation. It is useful for inspecting baseline behavior and building later data pipelines; it does not contain camera images and is not yet an imitation-learning dataset.
 
 ### Demo controls
 
@@ -78,6 +86,7 @@ Use `--controller safety` to benchmark the range-sensor emergency-braking varian
 The visual demo starts in autopilot mode. Switch to manual mode to demonstrate steering and throttle inputs, then reset to let the controller drive again.
 
 For a short presentation walkthrough and research-status notes, see [docs/DEMO_GUIDE.md](docs/DEMO_GUIDE.md).
+For the obstacle scenario definitions, experiment commands, and interpretation guide, see [docs/SCENARIO_BENCHMARKS.md](docs/SCENARIO_BENCHMARKS.md).
 For the vehicle equations, pure-pursuit steering model, and metric definitions, see [docs/MODEL_AND_METRICS.md](docs/MODEL_AND_METRICS.md).
 For the planned CARLA/CNN experiment design and fair evaluation protocol, see [docs/RESEARCH_PLAN.md](docs/RESEARCH_PLAN.md).
 
@@ -95,7 +104,7 @@ Or run it with pytest:
 python -m pytest
 ```
 
-The suite contains 49 automated tests covering metric calculations, vehicle dynamics, road geometry, controller outputs, episode progression, obstacle contacts, benchmark execution, telemetry export, demo rendering, and reset behavior.
+The suite covers metric calculations, vehicle dynamics, road geometry, controller outputs, episode progression, obstacle contacts, scenario construction, safe-stop behavior, benchmark execution, telemetry export, demo rendering, and reset behavior.
 
 ## Evaluation metrics
 
