@@ -7,6 +7,7 @@ from autodrive_sim.controllers import (
     ControlCommand,
     LaneFollowingController,
     ObstacleAvoidanceController,
+    SteeringObstacleAvoidanceController,
 )
 from autodrive_sim.metrics import EvaluationMetrics
 from autodrive_sim.telemetry import TelemetryRecorder
@@ -35,7 +36,7 @@ class Simulation:
 
     road: Road = field(default_factory=Road)
     vehicle: Vehicle = field(default_factory=Vehicle)
-    controller: LaneFollowingController | ObstacleAvoidanceController = field(
+    controller: LaneFollowingController | ObstacleAvoidanceController | SteeringObstacleAvoidanceController = field(
         default_factory=LaneFollowingController
     )
     obstacles: tuple[Obstacle, ...] = field(default_factory=tuple)
@@ -74,7 +75,10 @@ class Simulation:
             command if command is not None
             else (
                 self.controller.control(self.vehicle, self.road, self.obstacles)
-                if isinstance(self.controller, ObstacleAvoidanceController)
+                if isinstance(
+                    self.controller,
+                    (ObstacleAvoidanceController, SteeringObstacleAvoidanceController),
+                )
                 else self.controller.control(self.vehicle, self.road)
             )
         )
