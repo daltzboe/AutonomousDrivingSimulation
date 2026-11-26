@@ -1,99 +1,142 @@
 # Autonomous Driving Simulation
 
-UTSA computer science research project comparing a rule-based autonomous driving baseline with a camera-based imitation-learning model in the CARLA simulator.
+A UTSA computer science research project for developing and comparing autonomous-driving controllers in simulation. The repository now includes a lightweight, interactive 2D driving environment that can be demonstrated on a standard Windows laptop. A CARLA integration and camera-based learning pipeline remain planned research stages.
 
 ## Research question
 
-Can we effectively train and evaluate autonomous driving AI in a simulated environment without exposing real vehicles or people to safety risks?
+How do different autonomous-driving control approaches compare when evaluated on the same simulated routes and scenarios?
 
-## Research scope
+## Current implementation
 
-We will implement and compare two approaches:
+### Lightweight 2D simulator
 
-1. **CARLA BasicAgent** — a rule-based baseline using route navigation, vehicle control, and obstacle-response behavior.
-2. **Imitation-learning CNN** — a neural network trained to predict steering commands from simulated camera images, following the end-to-end learning approach described by Bojarski et al. (2016).
+- Kinematic bicycle vehicle model with throttle, braking, and steering inputs.
+- Deterministic curved single-lane road with configurable width and route length.
+- Pure-pursuit lane-following controller with proportional speed control.
+- Stationary obstacle contacts and collision-event counting.
+- Fixed simulation time step and repeatable episode reset.
+- Interactive Pygame top-down view with live speed, lane deviation, route progress, and collision count.
+- Keyboard controls for manual driving and autopilot.
+- Reusable evaluation metrics for steering MAE, mean lane deviation, collision events per kilometer, distance, and route completion.
 
-Both controllers will be evaluated on comparable routes and scenarios using:
+### Planned research comparison
 
-- Steering mean absolute error (MAE)
-- Collision events per kilometer
-- Mean absolute lane-center deviation (meters)
-- Route completion (percentage)
+1. **Rule-based baseline:** first validate the local pure-pursuit controller, then integrate CARLA's BasicAgent/PID baseline when CARLA is available.
+2. **Imitation-learning CNN:** collect simulated camera frames and expert control labels, train a camera-to-steering model, and evaluate it on matching routes.
 
-All driving experiments are performed in simulation. Results will be measured and reported; no performance claims will be made before experiments are run.
+The current Pygame controller is an initial baseline for software development and demonstration. It is not CARLA's BasicAgent and does not represent a trained neural network.
 
-## Repository structure
+## Quick start (Windows / PowerShell)
 
-```text
-src/
-  autodrive_sim/
-    __init__.py
-    config.py       # Shared, validated simulation/experiment settings
-    metrics.py      # Controller evaluation metrics
-tests/
-  test_metrics.py   # Unit tests for metric calculations
-pyproject.toml      # Package metadata and test configuration
-requirements.txt    # Python dependencies
-```
-
-## Development environment
-
-Current development setup:
-
-- Windows + IntelliJ IDEA
-- Python 3.12.10
-- Project virtual environment: `.venv`
-- pip 26.3
-- NumPy, Pandas, Matplotlib, Pygame, OpenCV, scikit-learn, and SciPy installed locally
-
-The CARLA simulator and its Python API have **not** been integrated yet. We will select and document a CARLA release only after checking compatibility with the development environment.
-
-## Setup
-
-Activate the project's virtual environment, then run:
+From the repository root, activate the virtual environment:
 
 ```powershell
-python -m pip install -e ".[dev]"
+.\.venv\Scripts\Activate.ps1
 ```
 
-Run the unit tests:
+Install the project and demo/test extras:
+
+```powershell
+python -m pip install -e ".[dev,demo]"
+```
+
+Launch the visual simulation:
+
+```powershell
+python -m autodrive_sim.demo
+```
+
+You can also use the installed command:
+
+```powershell
+autodrive-demo
+```
+
+### Demo controls
+
+| Key | Action |
+| --- | --- |
+| A | Toggle autopilot / manual driving |
+| Up arrow | Accelerate in manual mode |
+| Down arrow | Brake in manual mode |
+| Left / Right arrows | Steer in manual mode |
+| Space | Pause / resume |
+| R | Reset the episode |
+| Esc | Quit |
+
+The visual demo starts in autopilot mode. Switch to manual mode to demonstrate steering and throttle inputs, then reset to let the controller drive again.
+
+## Tests
+
+Run the complete test suite:
 
 ```powershell
 python -m unittest discover -s tests -v
 ```
 
-## Current progress
+Or run it with pytest:
 
-### Completed
+```powershell
+python -m pytest
+```
 
-- [x] Created the Python virtual environment and verified Python 3.12.10.
-- [x] Upgraded pip to 26.3.
-- [x] Installed the initial scientific-computing, visualization, and computer-vision libraries.
-- [x] Created the `autodrive_sim` Python package.
-- [x] Added validated simulation and experiment configuration dataclasses.
-- [x] Implemented reusable evaluation metrics for steering MAE, lane deviation, collision rate, distance, and route completion.
-- [x] Added unit tests for metric calculations and invalid inputs.
+Tests cover metric calculations, vehicle dynamics, road geometry, controller outputs, episode progression, obstacle contacts, and reset behavior.
 
-### In progress
+## Evaluation metrics
 
-- [ ] Run the new unit tests in the local IntelliJ environment.
-- [ ] Select and install a CARLA release compatible with the chosen Python environment.
-- [ ] Connect to CARLA and verify a basic simulation session.
+- **Steering MAE:** mean absolute difference between predicted and expert steering commands. It is available when paired steering samples are collected.
+- **Lane deviation:** mean absolute distance from the lane center, in meters.
+- **Collision events:** modeled contacts between the vehicle and stationary obstacles.
+- **Collision rate:** collision events per kilometer traveled.
+- **Route completion:** completed forward distance divided by route length.
 
-### Not yet claimed
+An empty or unmeasured metric is reported as `null`, not as a fabricated zero. The current Pygame episode does not produce expert steering labels, so steering MAE remains unavailable until a data-collection workflow is added.
 
-No CARLA runs, trained models, or controller-comparison results have been produced yet.
+## Project structure
 
-## Planned workflow
+```text
+src/
+  autodrive_sim/
+    __init__.py
+    config.py
+    controllers.py
+    demo.py
+    metrics.py
+    simulator/
+      __init__.py
+      road.py
+      simulation.py
+      vehicle.py
+tests/
+  test_metrics.py
+  test_controllers.py
+  simulator/
+    test_road.py
+    test_simulation.py
+    test_vehicle.py
+pyproject.toml
+requirements.txt
+```
 
-1. Verify the project package and metric tests locally.
-2. Install and connect the CARLA simulator.
-3. Run BasicAgent and collect expert camera/control samples.
-4. Build a reproducible training and validation dataset.
-5. Train the camera-to-steering CNN.
-6. Evaluate both approaches on matching routes and scenarios.
+## Research integrity and limitations
+
+- The lightweight 2D environment is a development and demonstration tool, not a replacement for CARLA.
+- Obstacles in the current environment are stationary and simplified.
+- The current lane follower is a transparent pure-pursuit baseline, not a production-grade autonomous-driving stack.
+- CARLA has not yet been integrated or run in this repository.
+- No imitation-learning model has been trained and no controller-comparison results are claimed.
+- All experiments are intended to remain in simulation; this project does not control a real vehicle.
+
+## Planned milestones
+
+1. Validate the lightweight simulator and its automated tests.
+2. Add repeatable scenario and telemetry recording.
+3. Integrate CARLA on a compatible machine or remote environment.
+4. Collect expert camera/control samples from the rule-based CARLA baseline.
+5. Train and validate the imitation-learning CNN.
+6. Compare controllers on matching routes using the documented metrics.
 7. Analyze results, limitations, and future work.
 
-## Safety and boundaries
+## Development environment
 
-The project is a research simulation. It does not control a real vehicle. Advanced ideas such as generative world models, reasoning-based trajectory planning, and sensor fusion are future-work directions, not part of the initial implementation.
+The initial development environment is Windows, IntelliJ IDEA, and Python 3.12.10. The lightweight simulator uses Pygame and the existing Python package structure. CARLA setup is intentionally deferred until its version and Python API compatibility can be validated.
