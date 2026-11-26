@@ -100,8 +100,10 @@ src/
     __init__.py
     config.py
     controllers.py
+    benchmark.py
     demo.py
     metrics.py
+    telemetry.py
     simulator/
       __init__.py
       road.py
@@ -110,6 +112,7 @@ src/
 tests/
   test_metrics.py
   test_controllers.py
+  test_telemetry.py
   simulator/
     test_road.py
     test_simulation.py
