@@ -10,10 +10,11 @@ from autodrive_sim.simulator.vehicle import Vehicle
 
 class RangeSensorTests(unittest.TestCase):
     def test_detects_obstacle_ahead_at_surface_distance(self) -> None:
-        sensor = RangeSensor(field_of_view_deg=90, max_range_m=30, ray_count= five := 5)
+        ray_count = 5
+        sensor = RangeSensor(field_of_view_deg=90, max_range_m=30, ray_count=ray_count)
         scan = sensor.scan(Vehicle(), (Obstacle(x=10.0, y=0.0, radius=1.0),))
         self.assertAlmostEqual(scan.nearest_distance_m, 9.0)
-        self.assertEqual(len(scan.distances_m), five)
+        self.assertEqual(len(scan.distances_m), ray_count)
 
     def test_returns_maximum_range_when_no_obstacle_is_visible(self) -> None:
         scan = RangeSensor(max_range_m=18.0).scan(Vehicle(), ())
