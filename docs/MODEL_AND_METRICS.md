@@ -4,65 +4,65 @@ This note describes the equations used by the current lightweight 2D prototype. 
 
 ## Coordinate system
 
-- (x): forward position along the route, in meters.
-- (y): lateral position, in meters.
-- (psi): vehicle heading, in radians.
-- (v): vehicle speed, in meters per second.
-- (delta): front-wheel steering angle, in radians.
+- \(x\): forward position along the route, in meters.
+- \(y\): lateral position, in meters.
+- \(\psi\): vehicle heading, in radians.
+- \(v\): vehicle speed, in meters per second.
+- \(\delta\): front-wheel steering angle, in radians.
 
 The road centerline is a deterministic sinusoidal curve:
 
-[
-y_c(x) = A sin(kx)
-]
+\[
+y_c(x) = A \sin(kx)
+\]
 
-where (A) is curve amplitude and (k) is curve frequency. Lane boundaries are offset from the centerline by half the configured lane width.
+where \(A\) is curve amplitude and \(k\) is curve frequency. Lane boundaries are offset from the centerline by half the configured lane width.
 
 ## Vehicle model
 
-The vehicle uses a kinematic bicycle approximation. For normalized throttle (u_t), brake (u_b), steering (u_s), and time step (Delta t):
+The vehicle uses a kinematic bicycle approximation. For normalized throttle \(u_t\), brake \(u_b\), steering \(u_s\), and time step \(\Delta t\):
 
-[
-a = u_t a_{max} - u_b b_{max}
-]
+\[
+a = u_t a_{\max} - u_b b_{\max}
+\]
 
-[
-v_{t+Delta t} = max(0, v_t + aDelta t)
-]
+\[
+v_{t+\Delta t} = \max(0, v_t + a\Delta t)
+\]
 
 The normalized steering input is mapped to a physical steering angle:
 
-[
-delta = u_s delta_{max}
-]
+\[
+\delta = u_s \delta_{\max}
+\]
 
 The heading and position are advanced using:
 
-[
-psi_{t+Delta t} = psi_t + rac{v}{L}	an(delta)Delta t
-]
+\[
+\psi_{t+\Delta t} = \psi_t + \frac{v}{L}\tan(\delta)\Delta t
+\]
 
-[
-x_{t+Delta t} = x_t + vcos(psi_{t+Delta t})Delta t
-]
+\[
+x_{t+\Delta t} = x_t + v\cos(\psi_{t+\Delta t})\Delta t
+\]
 
-[
-y_{t+Delta t} = y_t + vsin(psi_{t+Delta t})Delta t
-]
+\[
+y_{t+\Delta t} = y_t + v\sin(\psi_{t+\Delta t})\Delta t
+\]
 
-Here (L) is the vehicle wheelbase. This is a simplified low-speed kinematic model; it does not simulate tire forces, slip, suspension, or complex vehicle dynamics.
+Here \(L\) is the vehicle wheelbase. This is a simplified low-speed kinematic model; it does not simulate tire forces, slip, suspension, or complex vehicle dynamics.
 
 ## Pure-pursuit lane follower
 
-The controller selects a target point on the road centerline a fixed look-ahead distance (L_d) ahead. Let (alpha) be the angle between the vehicle heading and the line from the vehicle to that target point.
+The controller selects a target point on the road centerline a fixed look-ahead distance \(L_d\) ahead. Let \(\alpha\) be the angle between the vehicle heading and the line from the vehicle to that target point.
 
-[
-kappa = rac{2sin(alpha)}{L_d}
-]
+\[
+\kappa = \frac{2\sin(\alpha)}{L_d}
+\]
 
-[
-delta = arctan(Lkappa)
-]
+\[
+\delta = \arctan(L\kappa)
+\]
 
 The requested steering angle is normalized by the vehicle's maximum steering angle and clamped to the allowed control range. Speed uses a proportional controller around the configured target speed.
 
