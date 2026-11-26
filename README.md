@@ -15,7 +15,8 @@ How do different autonomous-driving control approaches compare when evaluated on
 - Pure-pursuit lane-following controller with proportional speed control.
 - Stationary obstacle contacts and collision-event counting.
 - Deterministic planar range sensor with configurable field of view, ray count, and range.
-- Optional obstacle-aware safety controller that applies emergency braking using estimated stopping distance.
+- Obstacle-aware emergency-braking controller that stops when a hazard is too close.
+- Steering-based obstacle-avoidance controller that selects a clear lateral bypass, follows a smooth offset path, and returns to lane center; it falls back to braking when the road is too narrow.
 - Five deterministic benchmark scenarios: clear road, center-lane obstacle, lane-edge obstacle, outside-path obstacle, and multiple obstacles.
 - Fixed simulation time step and repeatable episode reset.
 - Interactive Pygame top-down view with live speed, lane deviation, route progress, and collision count.
@@ -64,12 +65,16 @@ python -m autodrive_sim.benchmark --controller safety --episodes 3 --output resu
 # Compare both controllers against a center-lane obstacle
 python -m autodrive_sim.benchmark --controller baseline --scenario center --episodes 3 --output results/center_baseline.json
 python -m autodrive_sim.benchmark --controller safety --scenario center --episodes 3 --output results/center_safety.json
+python -m autodrive_sim.benchmark --controller steering --scenario center --episodes 3 --output results/center_steering.json
+
+# Compare both obstacle-avoidance strategies on multiple hazards
+python -m autodrive_sim.benchmark --controller steering --scenario multiple --episodes 3
 
 # Test an obstacle outside the vehicle's path
 python -m autodrive_sim.benchmark --controller safety --scenario outside --episodes 3
 ```
 
-Use `--controller safety` to benchmark the range-sensor emergency-braking variant. Choose a scenario with `--scenario clear|center|edge|outside|multiple`. The `center` and `edge` scenarios challenge the safety controller; `outside` checks that an irrelevant obstacle does not trigger braking. A safe stop before the destination is reported as incomplete route completion, not as a completed trip. Use `--output` for a JSON summary and `--telemetry-dir` to save one CSV per episode. The CSV contains timestamp, position, heading, speed, control inputs, and lane deviation. It is useful for inspecting baseline behavior and building later data pipelines; it does not contain camera images and is not yet an imitation-learning dataset.
+Choose `--controller baseline` for pure-pursuit lane following, `--controller safety` for emergency braking, or `--controller steering` for lateral obstacle avoidance. The benchmark uses a 4.8 m road lane to provide enough modeled clearance for the configured vehicle to pass the stationary obstacles; the controller still checks road boundaries and falls back to braking when no safe side is available. Choose a scenario with `--scenario clear|center|edge|outside|multiple`. The `center` and `edge` scenarios challenge the safety controller; `outside` checks that an irrelevant obstacle does not trigger braking. A safe stop before the destination is reported as incomplete route completion, not as a completed trip. Use `--output` for a JSON summary and `--telemetry-dir` to save one CSV per episode. The CSV contains timestamp, position, heading, speed, control inputs, and lane deviation. It is useful for inspecting baseline behavior and building later data pipelines; it does not contain camera images and is not yet an imitation-learning dataset.
 
 ### Demo controls
 
@@ -105,7 +110,7 @@ Or run it with pytest:
 python -m pytest
 ```
 
-The suite covers metric calculations, vehicle dynamics, road geometry, controller outputs, episode progression, obstacle contacts, scenario construction, safe-stop behavior, benchmark execution, telemetry export, demo rendering, and reset behavior.
+The suite covers metric calculations, vehicle dynamics, road geometry, controller outputs, episode progression, obstacle contacts, scenario construction, safe-stop and steering-avoidance behavior, benchmark execution, telemetry export, demo rendering, and reset behavior.
 
 ## Evaluation metrics
 
@@ -164,11 +169,12 @@ requirements.txt
 
 1. Validate the lightweight simulator and its automated tests.
 2. Add repeatable scenario and telemetry recording.
-3. Integrate CARLA on a compatible machine or remote environment.
-4. Collect expert camera/control samples from the rule-based CARLA baseline.
-5. Train and validate the imitation-learning CNN.
-6. Compare controllers on matching routes using the documented metrics.
-7. Analyze results, limitations, and future work.
+3. Extend local planning to dense and moving obstacles.
+4. Integrate CARLA on a compatible machine or remote environment.
+5. Collect expert camera/control samples from the rule-based CARLA baseline.
+6. Train and validate the imitation-learning CNN.
+7. Compare controllers on matching routes using the documented metrics.
+8. Analyze results, limitations, and future work.
 
 ## Development environment
 
