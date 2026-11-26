@@ -8,7 +8,7 @@ How does a camera-based imitation-learning controller compare with a rule-based 
 
 ## Controller stages
 
-1. **Current development baseline:** pure-pursuit lane following in the lightweight 2D simulator. This validates vehicle control, episode orchestration, telemetry, and metric code.
+1. **Current development baselines:** pure-pursuit lane following and an optional range-sensor emergency-braking layer in the lightweight 2D simulator. These validate vehicle control, geometric sensing, basic safety intervention, episode orchestration, telemetry, and metric code.
 2. **Planned CARLA baseline:** CARLA BasicAgent/PID controller with documented route and scenario settings.
 3. **Planned learned controller:** CNN trained to predict steering from front-camera observations and expert control labels.
 
@@ -24,7 +24,7 @@ For each simulation time step, preserve at least:
 - Expert steering, throttle, and brake labels.
 - Weather, map/town, traffic configuration, and simulation time step.
 
-The current CSV recorder stores vehicle telemetry and controls only. Camera-frame capture and metadata fields must be added during the CARLA integration stage.
+The current CSV recorder stores vehicle telemetry and controls only. The planar range sensor is a deterministic geometric approximation; it is not physical LiDAR and does not model noise or occlusion. Camera-frame capture and metadata fields must be added during the CARLA integration stage.
 
 ## Train / validation / test split
 
@@ -72,4 +72,4 @@ For each controller and scenario, report the number of episodes, mean, and stand
 
 ## Current limitations and next steps
 
-The present prototype is a 2D development environment. It has no camera sensor, dynamic traffic, CARLA map, trained CNN, or real-world driving interface. The next research milestone is a CARLA integration on a compatible computer or remote machine, followed by synchronized camera/control data collection. All driving experiments remain simulation-only.
+The present prototype is a 2D development environment. It has no camera sensor, dynamic traffic, CARLA map, trained CNN, or real-world driving interface. Its range sensor and emergency-braking controller are simplified development baselines, not production perception or planning. The next research milestone is a CARLA integration on a compatible computer or remote machine, followed by synchronized camera/control data collection. All driving experiments remain simulation-only.

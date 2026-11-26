@@ -7,18 +7,29 @@ import json
 from pathlib import Path
 import statistics
 
+from autodrive_sim.controllers import ObstacleAvoidanceController
 from autodrive_sim.simulator.road import Road
 from autodrive_sim.simulator.simulation import Obstacle, Simulation
 
 
-def run_episode(telemetry_path: Path | None = None) -> dict[str, float | int | None]:
+def run_episode(
+    telemetry_path: Path | None = None,
+    controller_name: str = "baseline",
+) -> dict[str, float | int | None]:
     """Run one complete default route and optionally save its telemetry."""
     road = Road()
     obstacles = (
         Obstacle(130.0, road.center_y(130.0) + 1.4, 0.28),
         Obstacle(290.0, road.center_y(290.0) - 1.4, 0.28),
     )
-    simulation = Simulation(road=road, obstacles=obstacles)
+    if controller_name not in {"baseline", "safety"}:
+        raise ValueError("controller_name must be 'baseline' or 'safety'")
+    controller = ObstacleAvoidanceController() if controller_name == "safety" else None
+    simulation = Simulation(
+        road=road,
+        obstacles=obstacles,
+        **({"controller": controller} if controller is not None else {}),
+    )
     maximum_steps = int(road.route_length_m / 2.0 / simulation.dt)
     for _ in range(maximum_steps):
         simulation.step()
@@ -41,6 +52,10 @@ def main() -> None:
         help="number of identical baseline episodes to run (1-100)",
     )
     parser.add_argument(
+        "--controller", choices=("baseline", "safety"), default="baseline",
+        help="pure-pursuit baseline or range-sensor emergency-braking controller",
+    )
+    parser.add_argument(
         "--output", type=Path, default=None,
         help="optional JSON file for the episode metrics summary",
     )
@@ -58,7 +73,7 @@ def main() -> None:
             args.telemetry_dir / f"episode_{episode_number:03d}.csv"
             if args.telemetry_dir is not None else None
         )
-        episode_results.append(run_episode(telemetry_path))
+        episode_results.append(run_episode(telemetry_path, args.controller))
 
     lane_values = [
         result["lane_deviation_mean_m"]
@@ -72,7 +87,10 @@ def main() -> None:
         if result["route_completion_pct"] is not None
     ]
     report = {
-        "controller": "pure_pursuit_baseline",
+        "controller": (
+            "pure_pursuit_baseline" if args.controller == "baseline"
+            else "pure_pursuit_with_range_sensor_safety"
+        ),
         "simulator": "lightweight_2d",
         "episode_count": len(episode_results),
         "aggregate": {

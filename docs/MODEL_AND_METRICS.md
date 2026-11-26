@@ -66,6 +66,20 @@ The controller selects a target point on the road centerline a fixed look-ahead 
 
 The requested steering angle is normalized by the vehicle's maximum steering angle and clamped to the allowed control range. Speed uses a proportional controller around the configured target speed.
 
+## Planar range sensor and safety controller
+
+The optional range sensor casts evenly spaced rays across a configurable field of view. Each ray is intersected with the circular obstacle approximations in world coordinates. A hit reports the distance to the obstacle surface; a ray with no hit reports the configured maximum range.
+
+The safety controller first computes the pure-pursuit steering and speed command. It then estimates stopping distance using
+
+\\[
+d_{stop} = \\frac{v^2}{2b_{max}} + d_{margin}
+\\]
+
+where \\(v\\) is current speed, \\(b_{max}\\) is maximum braking deceleration, and \\(d_{margin}\\) is a configurable safety margin. When a detected obstacle in the vehicle's forward path is within this distance, the controller requests full braking and retains the baseline steering command.
+
+This is a deterministic geometric range-sensing approximation. It is not physical LiDAR, does not model sensor noise or occlusion, and is not a complete collision-avoidance planner.
+
 ## Metrics
 
 - **Mean lane deviation:** average absolute lateral distance between the vehicle and road centerline, in meters.

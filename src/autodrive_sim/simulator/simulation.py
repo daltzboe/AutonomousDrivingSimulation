@@ -3,7 +3,11 @@
 from dataclasses import dataclass, field
 import math
 
-from autodrive_sim.controllers import ControlCommand, LaneFollowingController
+from autodrive_sim.controllers import (
+    ControlCommand,
+    LaneFollowingController,
+    ObstacleAvoidanceController,
+)
 from autodrive_sim.metrics import EvaluationMetrics
 from autodrive_sim.telemetry import TelemetryRecorder
 from autodrive_sim.simulator.road import Road
@@ -31,7 +35,7 @@ class Simulation:
 
     road: Road = field(default_factory=Road)
     vehicle: Vehicle = field(default_factory=Vehicle)
-    controller: LaneFollowingController = field(
+    controller: LaneFollowingController | ObstacleAvoidanceController = field(
         default_factory=LaneFollowingController
     )
     obstacles: tuple[Obstacle, ...] = field(default_factory=tuple)
@@ -68,7 +72,11 @@ class Simulation:
             return
         selected_command = (
             command if command is not None
-            else self.controller.control(self.vehicle, self.road)
+            else (
+                self.controller.control(self.vehicle, self.road, self.obstacles)
+                if isinstance(self.controller, ObstacleAvoidanceController)
+                else self.controller.control(self.vehicle, self.road)
+            )
         )
         previous_x = self.vehicle.x
         self.vehicle.step(

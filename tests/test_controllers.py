@@ -2,7 +2,8 @@
 
 import unittest
 
-from autodrive_sim.controllers import LaneFollowingController
+from autodrive_sim.controllers import LaneFollowingController, ObstacleAvoidanceController
+from autodrive_sim.simulator.simulation import Obstacle
 from autodrive_sim.simulator.road import Road
 from autodrive_sim.simulator.vehicle import Vehicle
 
@@ -35,6 +36,31 @@ class LaneFollowingControllerTests(unittest.TestCase):
     def test_invalid_controller_settings_are_rejected(self) -> None:
         with self.assertRaises(ValueError):
             LaneFollowingController(lookahead_m=0.0)
+
+    def test_safety_controller_brakes_for_close_path_obstacle(self) -> None:
+        controller = ObstacleAvoidanceController()
+        vehicle = Vehicle(speed=10.0)
+        command = controller.control(
+            vehicle, Road(), (Obstacle(x=6.0, y=0.0, radius=0.5),)
+        )
+        self.assertEqual(command.throttle, 0.0)
+        self.assertEqual(command.brake, 1.0)
+
+    def test_safety_controller_ignores_obstacle_outside_vehicle_path(self) -> None:
+        controller = ObstacleAvoidanceController()
+        vehicle = Vehicle(speed=10.0)
+        command = controller.control(
+            vehicle, Road(), (Obstacle(x=6.0, y=2.0, radius=0.3),)
+        )
+        self.assertEqual(command.brake, 0.0)
+
+    def test_safety_controller_does_not_brake_for_distant_obstacle(self) -> None:
+        controller = ObstacleAvoidanceController()
+        vehicle = Vehicle(speed=10.0)
+        command = controller.control(
+            vehicle, Road(), (Obstacle(x=60.0, y=0.0, radius=0.5),)
+        )
+        self.assertEqual(command.brake, 0.0)
 
 
 if __name__ == "__main__":

@@ -15,6 +15,15 @@ class BenchmarkTests(unittest.TestCase):
         self.assertEqual(result["collision_events"], 0)
         self.assertGreater(result["distance_travelled_m"], 0.0)
 
+    def test_safety_controller_completes_default_route(self) -> None:
+        result = run_episode(controller_name="safety")
+        self.assertAlmostEqual(result["route_completion_pct"], 100.0)
+        self.assertEqual(result["collision_events"], 0)
+
+    def test_unknown_controller_is_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            run_episode(controller_name="unknown")
+
     def test_benchmark_can_export_episode_telemetry(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "episode.csv"

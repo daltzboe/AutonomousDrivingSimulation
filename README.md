@@ -14,6 +14,8 @@ How do different autonomous-driving control approaches compare when evaluated on
 - Deterministic curved single-lane road with configurable width and route length.
 - Pure-pursuit lane-following controller with proportional speed control.
 - Stationary obstacle contacts and collision-event counting.
+- Deterministic planar range sensor with configurable field of view, ray count, and range.
+- Optional obstacle-aware safety controller that applies emergency braking using estimated stopping distance.
 - Fixed simulation time step and repeatable episode reset.
 - Interactive Pygame top-down view with live speed, lane deviation, route progress, and collision count.
 - Keyboard controls for manual driving and autopilot.
@@ -55,10 +57,11 @@ autodrive-demo
 Run repeatable headless baseline episodes and export metrics plus telemetry:
 
 ```powershell
-python -m autodrive_sim.benchmark --episodes 3 --output results/baseline_summary.json --telemetry-dir results/telemetry
+python -m autodrive_sim.benchmark --controller baseline --episodes 3 --output results/baseline_summary.json --telemetry-dir results/telemetry
+python -m autodrive_sim.benchmark --controller safety --episodes 3 --output results/safety_summary.json
 ```
 
-This creates one CSV telemetry file per episode and a JSON summary. The CSV contains timestamp, position, heading, speed, control inputs, and lane deviation. It is useful for inspecting baseline behavior and building later data pipelines; it does not contain camera images and is not yet an imitation-learning dataset.
+Use `--controller safety` to benchmark the range-sensor emergency-braking variant. This creates one CSV telemetry file per episode and a JSON summary. The CSV contains timestamp, position, heading, speed, control inputs, and lane deviation. It is useful for inspecting baseline behavior and building later data pipelines; it does not contain camera images and is not yet an imitation-learning dataset.
 
 ### Demo controls
 
@@ -92,7 +95,7 @@ Or run it with pytest:
 python -m pytest
 ```
 
-The suite contains 38 automated tests covering metric calculations, vehicle dynamics, road geometry, controller outputs, episode progression, obstacle contacts, benchmark execution, telemetry export, demo rendering, and reset behavior.
+The suite contains 49 automated tests covering metric calculations, vehicle dynamics, road geometry, controller outputs, episode progression, obstacle contacts, benchmark execution, telemetry export, demo rendering, and reset behavior.
 
 ## Evaluation metrics
 
@@ -116,6 +119,7 @@ src/
     demo.py
     metrics.py
     telemetry.py
+    sensors.py
     simulator/
       __init__.py
       road.py
@@ -127,6 +131,7 @@ tests/
   test_demo.py
   test_controllers.py
   test_telemetry.py
+  test_sensors.py
   simulator/
     test_road.py
     test_simulation.py
@@ -139,6 +144,7 @@ requirements.txt
 
 - The lightweight 2D environment is a development and demonstration tool, not a replacement for CARLA.
 - Obstacles in the current environment are stationary and simplified.
+- The planar range sensor is a deterministic geometric approximation, not a physical LiDAR sensor; it does not model noise, occlusion, or calibration.
 - The current lane follower is a transparent pure-pursuit baseline, not a production-grade autonomous-driving stack.
 - CARLA has not yet been integrated or run in this repository.
 - No imitation-learning model has been trained and no controller-comparison results are claimed.

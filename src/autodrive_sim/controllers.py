@@ -1,10 +1,11 @@
 """Baseline autonomous controllers for the lightweight simulation."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import math
 
 from autodrive_sim.simulator.road import Road
 from autodrive_sim.simulator.vehicle import Vehicle
+from autodrive_sim.sensors import RangeSensor
 
 
 def _clamp(value: float, lower: float, upper: float) -> float:
@@ -74,3 +75,42 @@ class LaneFollowingController:
             brake=brake,
             steering=steering,
         )
+
+
+@dataclass
+class ObstacleAvoidanceController:
+    """Lane-following controller with a range-sensor emergency-braking layer.
+
+    The controller preserves the baseline steering command and applies full
+    braking when a lane-relevant obstacle is inside the estimated stopping
+    distance plus a configurable safety margin. This is a simple safety
+    baseline, not a complete path-planning or collision-avoidance system.
+    """
+
+    lane_follower: LaneFollowingController = field(default_factory=LaneFollowingController)
+    sensor: RangeSensor = field(default_factory=RangeSensor)
+    safety_margin_m: float = 3.0
+
+    def __post_init__(self) -> None:
+        if not math.isfinite(self.safety_margin_m) or self.safety_margin_m < 0:
+            raise ValueError("safety_margin_m must be finite and non-negative")
+
+    def control(self, vehicle: Vehicle, road: Road, obstacles=()) -> ControlCommand:
+        """Return the lane-following command, braking for a close obstacle."""
+        baseline = self.lane_follower.control(vehicle, road)
+        lane_obstacles = tuple(
+            obstacle
+            for obstacle in obstacles
+            if abs(obstacle.y - road.center_y(obstacle.x))
+            <= 0.8 + obstacle.radius
+        )
+        nearest = self.sensor.scan(vehicle, lane_obstacles).nearest_distance_m
+        stopping_distance = (
+            vehicle.speed * vehicle.speed / (2.0 * vehicle.max_braking)
+            + self.safety_margin_m
+        )
+        if nearest <= stopping_distance:
+            return ControlCommand(
+                throttle=0.0, brake=1.0, steering=baseline.steering
+            )
+        return baseline
