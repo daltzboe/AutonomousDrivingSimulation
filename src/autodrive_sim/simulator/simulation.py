@@ -5,6 +5,7 @@ import math
 
 from autodrive_sim.controllers import ControlCommand, LaneFollowingController
 from autodrive_sim.metrics import EvaluationMetrics
+from autodrive_sim.telemetry import TelemetryRecorder
 from autodrive_sim.simulator.road import Road
 from autodrive_sim.simulator.vehicle import Vehicle
 
@@ -37,6 +38,7 @@ class Simulation:
     vehicle_radius: float = 0.8
     dt: float = 0.05
     metrics: EvaluationMetrics = field(default_factory=EvaluationMetrics)
+    recorder: TelemetryRecorder = field(default_factory=TelemetryRecorder)
     elapsed_seconds: float = 0.0
     collision: bool = False
     completed: bool = False
@@ -53,6 +55,7 @@ class Simulation:
         """Reset the episode to its initial state and clear all measurements."""
         self.vehicle = Vehicle(y=self.road.center_y(0.0))
         self.metrics = EvaluationMetrics()
+        self.recorder.clear()
         self.elapsed_seconds = 0.0
         self.collision = False
         self.completed = False
@@ -76,6 +79,9 @@ class Simulation:
         )
         self.last_command = selected_command
         self.elapsed_seconds += self.dt
+        self.recorder.record(
+            self.elapsed_seconds, self.vehicle, selected_command, self.road
+        )
 
         distance = max(0.0, self.vehicle.x - previous_x)
         self.metrics.add_distance(distance)
