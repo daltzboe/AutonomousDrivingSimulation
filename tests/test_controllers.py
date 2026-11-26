@@ -84,6 +84,20 @@ class SteeringObstacleAvoidanceControllerTests(unittest.TestCase):
         self.assertGreaterEqual(command.steering, -1.0)
         self.assertLessEqual(command.steering, 1.0)
 
+    def test_steering_controller_passes_on_opposite_side_of_edge_obstacle(self) -> None:
+        road = Road(lane_width=4.8)
+        vehicle = Vehicle(x=70.0, y=road.center_y(70.0), speed=10.0)
+        obstacle = Obstacle(
+            x=100.0, y=road.center_y(100.0) + 1.0, radius=0.35
+        )
+
+        command = SteeringObstacleAvoidanceController().control(
+            vehicle, road, (obstacle,)
+        )
+
+        self.assertLess(command.steering, 0.0)
+        self.assertEqual(command.brake, 0.0)
+
     def test_steering_controller_brakes_when_lane_is_too_narrow_to_pass(self) -> None:
         road = Road(lane_width=3.6)
         vehicle = Vehicle(x=92.0, y=road.center_y(92.0), speed=10.0)
