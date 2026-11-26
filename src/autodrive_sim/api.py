@@ -115,7 +115,7 @@ class SimulatorAPIHandler(BaseHTTPRequestHandler):
             scenario = payload.get("scenario", "center")
             episodes = payload.get("episodes", 1)
 
-            if controller not in CONTROLLERS:
+            if not isinstance(controller, str) or controller not in CONTROLLERS:
                 raise ValueError("Choose baseline, safety, or steering controller.")
             if scenario not in SCENARIOS:
                 raise ValueError(f"Choose one of these scenarios: {', '.join(SCENARIOS)}.")
