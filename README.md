@@ -75,6 +75,7 @@ This creates one CSV telemetry file per episode and a JSON summary. The CSV cont
 The visual demo starts in autopilot mode. Switch to manual mode to demonstrate steering and throttle inputs, then reset to let the controller drive again.
 
 For a short presentation walkthrough and research-status notes, see [docs/DEMO_GUIDE.md](docs/DEMO_GUIDE.md).
+For the vehicle equations, pure-pursuit steering model, and metric definitions, see [docs/MODEL_AND_METRICS.md](docs/MODEL_AND_METRICS.md).
 
 ## Tests
 
