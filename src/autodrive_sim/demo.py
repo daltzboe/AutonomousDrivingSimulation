@@ -19,6 +19,7 @@ def main() -> None:
         ) from exc
 
     from autodrive_sim.controllers import ControlCommand
+    from autodrive_sim.sensors import RangeSensor
     from autodrive_sim.simulator.road import Road
     from autodrive_sim.simulator.simulation import Obstacle, Simulation
 
@@ -37,6 +38,7 @@ def main() -> None:
         Obstacle(290.0, road.center_y(290.0) - 1.4, 0.28),
     )
     simulation = Simulation(road=road, obstacles=obstacles)
+    range_sensor = RangeSensor()
     autopilot = True
     paused = False
     running = True
@@ -116,6 +118,20 @@ def main() -> None:
                 center_points[index], center_points[min(index + 2, sample_count)], 2
             )
 
+        scan = range_sensor.scan(simulation.vehicle, obstacles)
+        for ray_index in range(0, len(scan.distances_m), 4):
+            distance = scan.distances_m[ray_index]
+            if distance < range_sensor.max_range_m:
+                ray_angle = simulation.vehicle.yaw + scan.angles_rad[ray_index]
+                endpoint = world_to_screen(
+                    simulation.vehicle.x + distance * math.cos(ray_angle),
+                    simulation.vehicle.y + distance * math.sin(ray_angle),
+                )
+                pygame.draw.line(
+                    screen, (65, 165, 195),
+                    (int(car_screen_x), int(car_screen_y)), endpoint, 1
+                )
+
         for obstacle in obstacles:
             point = world_to_screen(obstacle.x, obstacle.y)
             radius = max(4, int(obstacle.radius * pixels_per_meter))
@@ -133,7 +149,7 @@ def main() -> None:
         screen.blit(rotated_car, car_rect)
 
         # HUD panel.
-        panel = pygame.Surface((390, 188), pygame.SRCALPHA)
+        panel = pygame.Surface((390, 214), pygame.SRCALPHA)
         panel.fill((8, 14, 22, 220))
         screen.blit(panel, (18, 18))
         draw_text("UTSA | AUTONOMOUS DRIVING", 32, 30, (90, 195, 245), screen, title_font)
@@ -144,6 +160,12 @@ def main() -> None:
         draw_text(f"LANE ERROR {lane_error:5.2f} m", 32, 120)
         draw_text(f"PROGRESS   {simulation.route_completion_pct:5.1f} %", 32, 146)
         draw_text(f"COLLISIONS {simulation.metrics.collision_events}", 32, 172)
+        nearest_text = (
+            f"RANGE      {scan.nearest_distance_m:5.1f} m"
+            if scan.nearest_distance_m < range_sensor.max_range_m
+            else "RANGE      CLEAR"
+        )
+        draw_text(nearest_text, 32, 198, (110, 205, 220))
 
         status = "PAUSED" if paused else (
             "ROUTE COMPLETE" if simulation.completed else "SIMULATION RUNNING"
