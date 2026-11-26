@@ -58,6 +58,7 @@ Run repeatable headless baseline episodes and export metrics plus telemetry:
 
 ```powershell
 python -m autodrive_sim.benchmark --controller baseline --episodes 3 --output results/baseline_summary.json --telemetry-dir results/telemetry
+python -m autodrive_sim.benchmark --controller safety --episodes 3 --output results/safety_summary.json
 ```
 
 Use `--controller safety` to benchmark the range-sensor emergency-braking variant. This creates one CSV telemetry file per episode and a JSON summary. The CSV contains timestamp, position, heading, speed, control inputs, and lane deviation. It is useful for inspecting baseline behavior and building later data pipelines; it does not contain camera images and is not yet an imitation-learning dataset.
@@ -94,7 +95,7 @@ Or run it with pytest:
 python -m pytest
 ```
 
-The suite contains 48 automated tests covering metric calculations, vehicle dynamics, road geometry, controller outputs, episode progression, obstacle contacts, benchmark execution, telemetry export, demo rendering, and reset behavior.
+The suite contains 49 automated tests covering metric calculations, vehicle dynamics, road geometry, controller outputs, episode progression, obstacle contacts, benchmark execution, telemetry export, demo rendering, and reset behavior.
 
 ## Evaluation metrics
 
