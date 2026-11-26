@@ -8,6 +8,9 @@ env/
 .idea/
 *.iml
 
+# Python package build metadata
+*.egg-info/
+
 # Test / coverage
 .pytest_cache/
 .coverage
