@@ -48,7 +48,7 @@ class RangeSensor:
             raise ValueError("field_of_view_deg must be in (0, 360]")
         if not math.isfinite(self.max_range_m) or self.max_range_m <= 0:
             raise ValueError("max_range_m must be positive and finite")
-        if isinstance(self.ray_count, bool) or self.ray_count < 2:
+        if isinstance(self.ray_count, bool) or not isinstance(self.ray_count, int) or self.ray_count < 2:
             raise ValueError("ray_count must be an integer of at least 2")
 
     def scan(
