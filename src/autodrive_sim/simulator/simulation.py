@@ -1,11 +1,27 @@
 """Episode orchestration for the lightweight autonomous-driving simulator."""
 
 from dataclasses import dataclass, field
+import math
 
 from autodrive_sim.controllers import ControlCommand, LaneFollowingController
 from autodrive_sim.metrics import EvaluationMetrics
 from autodrive_sim.simulator.road import Road
 from autodrive_sim.simulator.vehicle import Vehicle
+
+
+@dataclass(frozen=True)
+class Obstacle:
+    """A circular stationary obstacle in world coordinates."""
+
+    x: float
+    y: float
+    radius: float = 0.35
+
+    def __post_init__(self) -> None:
+        if not all(math.isfinite(value) for value in (self.x, self.y, self.radius)):
+            raise ValueError("Obstacle values must be finite.")
+        if self.radius <= 0:
+            raise ValueError("Obstacle radius must be positive.")
 
 
 @dataclass
@@ -17,19 +33,21 @@ class Simulation:
     controller: LaneFollowingController = field(
         default_factory=LaneFollowingController
     )
+    obstacles: tuple[Obstacle, ...] = field(default_factory=tuple)
+    vehicle_radius: float = 0.8
     dt: float = 0.05
     metrics: EvaluationMetrics = field(default_factory=EvaluationMetrics)
     elapsed_seconds: float = 0.0
     collision: bool = False
     completed: bool = False
     last_command: ControlCommand = field(default_factory=ControlCommand)
-    _was_on_road: bool = True
+    _hit_obstacles: set[int] = field(default_factory=set, init=False, repr=False)
 
     def __post_init__(self) -> None:
-        if self.dt <= 0:
-            raise ValueError("Simulation time step must be positive.")
-        if not self.road.is_on_road(self.vehicle.x, self.vehicle.y):
-            self._was_on_road = False
+        if not math.isfinite(self.dt) or self.dt <= 0:
+            raise ValueError("Simulation time step must be positive and finite.")
+        if not math.isfinite(self.vehicle_radius) or self.vehicle_radius <= 0:
+            raise ValueError("Vehicle radius must be positive and finite.")
 
     def reset(self) -> None:
         """Reset the episode to its initial state and clear all measurements."""
@@ -39,14 +57,15 @@ class Simulation:
         self.collision = False
         self.completed = False
         self.last_command = ControlCommand()
-        self._was_on_road = True
+        self._hit_obstacles.clear()
 
     def step(self, command: ControlCommand | None = None) -> None:
         """Advance one fixed simulation step using AI or supplied manual input."""
         if self.completed:
             return
-        selected_command = command or self.controller.control(
-            self.vehicle, self.road
+        selected_command = (
+            command if command is not None
+            else self.controller.control(self.vehicle, self.road)
         )
         previous_x = self.vehicle.x
         self.vehicle.step(
@@ -63,14 +82,20 @@ class Simulation:
         deviation = self.road.lane_deviation(self.vehicle.x, self.vehicle.y)
         self.metrics.add_lane_deviation(deviation)
 
-        on_road = self.road.is_on_road(self.vehicle.x, self.vehicle.y)
-        if self._was_on_road and not on_road:
-            self.metrics.add_collision()
-            self.collision = True
-        self._was_on_road = on_road
+        for index, obstacle in enumerate(self.obstacles):
+            separation = math.hypot(
+                self.vehicle.x - obstacle.x, self.vehicle.y - obstacle.y
+            )
+            if (
+                index not in self._hit_obstacles
+                and separation <= self.vehicle_radius + obstacle.radius
+            ):
+                self._hit_obstacles.add(index)
+                self.metrics.add_collision()
+                self.collision = True
 
         self.metrics.set_route_progress(
-            min(self.vehicle.x, self.road.route_length_m),
+            min(max(self.vehicle.x, 0.0), self.road.route_length_m),
             self.road.route_length_m,
         )
         if self.vehicle.x >= self.road.route_length_m:
