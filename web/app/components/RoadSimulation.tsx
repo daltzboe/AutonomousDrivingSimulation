@@ -20,18 +20,19 @@ const ROUTE_LENGTH = 2800;
 const LANE_WIDTH = 3.6;
 const COLORS = ["#e1a45e", "#a8b9c9", "#d86f72", "#7f9bd6", "#a5c88d", "#b5a0d6"];
 
-function laneCenter(lane: number) { return (lane + 0.5) * LANE_WIDTH; }
 function clamp(v: number, min: number, max: number) { return Math.max(min, Math.min(max, v)); }
 
 export default function RoadSimulation({ running, controller, scenario, resetToken, onTelemetry }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const stateRef = useRef({ distance: 0, speed: 0, elapsed: 0, lane: 2, laneTarget: 2, collisions: 0, stoppedAtSignal: false, signal: "GREEN", crashed: false, traffic: [] as TrafficCar[] });
+  const stateRef = useRef({ distance: 0, speed: 0, elapsed: 0, lane: 2, laneTarget: 2, collisions: 0, signal: "GREEN", crashed: false, traffic: [] as TrafficCar[] });
   const telemetryRef = useRef(onTelemetry);
+  const runningRef = useRef(running);
   telemetryRef.current = onTelemetry;
+  runningRef.current = running;
   const [hud, setHud] = useState({ speed: 0, distance: 0, lane: 2, signal: "GREEN", collisions: 0, status: "READY AT START" });
 
   useEffect(() => {
-    stateRef.current = { distance: 0, speed: 0, elapsed: 0, lane: 2, laneTarget: 2, collisions: 0, stoppedAtSignal: false, signal: "GREEN", crashed: false, traffic: [] };
+    stateRef.current = { distance: 0, speed: 0, elapsed: 0, lane: 2, laneTarget: 2, collisions: 0, signal: "GREEN", crashed: false, traffic: [] };
     setHud({ speed: 0, distance: 0, lane: 2, signal: "GREEN", collisions: 0, status: "READY AT START" });
   }, [resetToken, controller, scenario]);
 
@@ -102,7 +103,7 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
       ctx.restore();
     };
 
-    const draw = (timestamp: number) => {
+    const draw = () => {
       const width = canvas.clientWidth;
       const height = canvas.clientHeight;
       const d = Math.min(width, 960);
@@ -229,7 +230,7 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
       const dt = last ? clamp((timestamp - last) / 1000, 0, 0.05) : 0;
       last = timestamp;
       const current = stateRef.current;
-      if (running && !current.crashed && current.distance < ROUTE_LENGTH) {
+      if (runningRef.current && !current.crashed && current.distance < ROUTE_LENGTH) {
         current.elapsed += dt;
         const egoLane = Math.round(current.laneTarget);
         const aheadHazard = hazards.find(h => h.lane === egoLane && h.s >= current.distance && h.s - current.distance < 115);
@@ -280,18 +281,18 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
         }
         if (current.distance >= ROUTE_LENGTH) current.speed = 0;
       }
-      draw(timestamp);
+      draw();
       if (timestamp - lastTelemetry > 160) {
         lastTelemetry = timestamp;
         const progress = Math.min(100, current.distance / ROUTE_LENGTH * 100);
-        setHud({ speed: current.speed, distance: current.distance, lane: current.lane, signal: current.signal, collisions: current.collisions, status: current.crashed ? "COLLISION · RESET" : current.distance >= ROUTE_LENGTH ? "ROUTE COMPLETE" : running ? "DRIVING" : current.distance > 0 ? "PAUSED" : "READY AT START" });
+        setHud({ speed: current.speed, distance: current.distance, lane: current.lane, signal: current.signal, collisions: current.collisions, status: current.crashed ? "COLLISION · RESET" : current.distance >= ROUTE_LENGTH ? "ROUTE COMPLETE" : runningRef.current ? "DRIVING" : current.distance > 0 ? "PAUSED" : "READY AT START" });
         telemetryRef.current({ speed: current.speed, progress, elapsed: current.elapsed, lane: current.lane, signal: current.signal, collisions: current.collisions });
       }
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
     return () => { cancelAnimationFrame(frame); observer.disconnect(); };
-  }, [running, controller, scenario, resetToken]);
+  }, [controller, scenario, resetToken]);
 
   return (
     <div className="road-sim-wrap">
