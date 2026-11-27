@@ -1,10 +1,24 @@
 # Autonomous Driving Research Dashboard
 
-A browser-based companion interface for the Python autonomous-driving simulator.
+A browser-based research interface for the Python autonomous-driving simulator.
 
 ## Run locally
 
-From the repository root:
+Use two terminals from the repository root.
+
+**Terminal 1 — Python benchmark API**
+
+Activate the project's virtual environment if needed, then run:
+
+```powershell
+$env:PYTHONPATH = "src"
+python -m autodrive_sim.api
+```
+
+The API listens on `http://127.0.0.1:8000`. Check it at
+`http://127.0.0.1:8000/api/health`.
+
+**Terminal 2 — Web dashboard**
 
 ```powershell
 cd web
@@ -14,15 +28,18 @@ npm run dev
 
 Open http://localhost:3000.
 
-## Current scope
+## Running a benchmark
 
-- Responsive research dashboard layout.
-- Interactive front-end road preview with selectable obstacle scenarios and controller descriptions.
-- Run, pause, and reset controls for a demonstration animation.
-- Telemetry-style readouts and experiment configuration panels.
+Select a controller and scenario in the dashboard, then choose **Run Python benchmark**.
+The dashboard sends a request to the local Python API and displays the returned
+aggregate lane-deviation, collision, route-completion, and safe-stop metrics.
 
-## Integration status
+The API accepts `baseline`, `safety`, and `steering` controllers; scenarios
+`clear`, `center`, `edge`, `outside`, and `multiple`; and 1–100 episodes.
 
-The current road animation and telemetry values are front-end demonstration behavior. They are not yet streamed from the Python simulator, and the displayed values must not be treated as benchmark results. The next integration stage will expose reproducible Python benchmark outputs to the dashboard.
+## Current scope and limitations
 
-The Python simulator remains the source of truth for vehicle dynamics, sensor behavior, collision checks, and evaluation metrics. This web app does not control a real vehicle.
+- Python benchmark results are actual outputs from the deterministic lightweight 2D simulator.
+- The animated road and preview telemetry remain front-end illustration only; they are not streamed from the Python vehicle state.
+- The API is local-development only and binds to loopback. A deployed Vercel frontend cannot access a visitor's local Python service. A remotely hosted backend and deployment configuration are a separate step.
+- This project is not CARLA, a trained neural network, or real-world vehicle control. Steering MAE requires expert steering labels.
