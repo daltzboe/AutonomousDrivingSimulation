@@ -48,6 +48,7 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
     let lastTelemetry = 0;
     let spawnId = 0;
     let nextTrafficSpawnDistance = 190;
+    let midRouteTrafficAdded = false;
     let hazards: Hazard[] = [];
     let signals: Signal[] = [];
     const s = stateRef.current;
@@ -82,6 +83,7 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
       ];
       spawnId = 17;
       nextTrafficSpawnDistance = 150;
+      midRouteTrafficAdded = false;
     };
     createWorld();
 
@@ -479,19 +481,53 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
           car.speed += clamp(trafficTarget - car.speed, -8 * dt, 4.5 * dt);
           car.s += direction * car.speed * dt;
         });
-        current.traffic = current.traffic.filter(car => car.s > current.distance - 130 && car.s < current.distance + 260);
-        if (current.distance >= nextTrafficSpawnDistance && current.traffic.length < 30) {
+        // Keep a longer look-ahead buffer. The old +260m cutoff deleted the
+        // initial oncoming vehicles before they could enter the visible area.
+        current.traffic = current.traffic.filter(car => car.s > current.distance - 180 && car.s < current.distance + 560);
+        if (current.distance >= nextTrafficSpawnDistance && current.traffic.length < 40) {
           // Denser, staggered traffic makes the lane-selection/overtake behavior
           // visible without placing a new car directly on top of existing traffic.
           const id = spawnId++;
           const lane = id % 4;
-          const spawnS = current.distance + (lane < 2 ? 340 + (id % 5) * 42 : 145 + (id % 5) * 34);
+          const spawnS = current.distance + (lane < 2 ? 230 + (id % 5) * 38 : 145 + (id % 5) * 34);
           const spawnLaneClear = current.traffic.every(other =>
             Math.round(other.lane) !== lane || Math.abs(other.s - spawnS) > 55);
           if (spawnLaneClear) {
             current.traffic.push({ id, lane, laneTarget: lane, s: spawnS, speed: Math.min(SPEED_LIMIT_MS, lane < 2 ? 15 + (id % 5) : 10 + (id % 7)), color: COLORS[id % COLORS.length] });
           }
           nextTrafficSpawnDistance = current.distance + 38 + (id % 3) * 16;
+        }
+
+        // At 50% route completion, add a staggered group of slower
+        // same-direction vehicles to create following and overtaking interactions.
+        if (!midRouteTrafficAdded && current.distance >= ROUTE_LENGTH * 0.5) {
+          midRouteTrafficAdded = true;
+          const surgeCars = [
+            { lane: 2, offset: 155, speed: 10 },
+            { lane: 2, offset: 265, speed: 13 },
+            { lane: 2, offset: 385, speed: 11 },
+            { lane: 2, offset: 505, speed: 14 },
+            { lane: 3, offset: 195, speed: 12 },
+            { lane: 3, offset: 315, speed: 10 },
+            { lane: 3, offset: 435, speed: 14 },
+            { lane: 3, offset: 555, speed: 12 },
+          ];
+          for (const surge of surgeCars) {
+            const spawnS = current.distance + surge.offset;
+            const laneClear = current.traffic.every(other =>
+              Math.round(other.lane) !== surge.lane || Math.abs(other.s - spawnS) > 58);
+            if (laneClear) {
+              const id = spawnId++;
+              current.traffic.push({
+                id,
+                lane: surge.lane,
+                laneTarget: surge.lane,
+                s: spawnS,
+                speed: surge.speed,
+                color: COLORS[id % COLORS.length],
+              });
+            }
+          }
         }
         for (const hazard of hazards) {
           if (Math.abs(hazard.s - current.distance) < 3.2 && Math.abs(current.lane - hazard.lane) < 0.42) {
