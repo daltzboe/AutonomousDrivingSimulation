@@ -12,7 +12,7 @@ type Props = {
   onTelemetry: (value: { speed: number; progress: number; elapsed: number; lane: number; signal: string; collisions: number }) => void;
 };
 
-type TrafficCar = { id: number; lane: number; s: number; speed: number; color: string };
+type TrafficCar = { id: number; lane: number; laneTarget?: number; s: number; speed: number; color: string };
 type Hazard = { s: number; lane: number; kind: "barrier" | "cone" };
 type Signal = { s: number; phase: "green" | "yellow" | "red" };
 
@@ -60,12 +60,12 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
       if (scenario === "multiple") hazards.push({ s: 300, lane: 3, kind: "barrier" }, { s: 345, lane: 2, kind: "cone" }, { s: 760, lane: 2, kind: "barrier" }, { s: 1280, lane: 3, kind: "cone" }, { s: 1810, lane: 2, kind: "barrier" }, { s: 2250, lane: 3, kind: "cone" });
       signals = [480, 1040, 1580, 2180, 2580].map((distance, i) => ({ s: distance, phase: i % 3 === 0 ? "red" : "green" }));
       s.traffic = [
-        { id: 1, lane: 0, s: 565, speed: 16, color: COLORS[0] },
-        { id: 2, lane: 1, s: 690, speed: 19, color: COLORS[1] },
-        { id: 3, lane: 3, s: 125, speed: 12, color: COLORS[2] },
-        { id: 4, lane: 0, s: 980, speed: 18, color: COLORS[3] },
-        { id: 5, lane: 1, s: 1125, speed: 15, color: COLORS[4] },
-        { id: 6, lane: 3, s: 255, speed: 16, color: COLORS[5] },
+        { id: 1, lane: 0, laneTarget: 0, s: 565, speed: 16, color: COLORS[0] },
+        { id: 2, lane: 1, laneTarget: 1, s: 690, speed: 19, color: COLORS[1] },
+        { id: 3, lane: 3, laneTarget: 3, s: 125, speed: 12, color: COLORS[2] },
+        { id: 4, lane: 0, laneTarget: 0, s: 980, speed: 18, color: COLORS[3] },
+        { id: 5, lane: 1, laneTarget: 1, s: 1125, speed: 15, color: COLORS[4] },
+        { id: 6, lane: 3, laneTarget: 3, s: 255, speed: 16, color: COLORS[5] },
       ];
       spawnId = 7;
       nextTrafficSpawnDistance = 245;
@@ -355,6 +355,36 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
         current.distance += current.speed * dt;
         current.traffic.forEach(car => {
           const direction = car.lane < 2 ? -1 : 1;
+          // Traffic vehicles may overtake a slow/stopped vehicle in their own
+          // direction, but only after checking front and rear clearance.
+          const laneChanging = car.laneTarget !== undefined && Math.abs(car.lane - car.laneTarget) > 0.08;
+          if (!laneChanging) {
+            const laneAhead = current.traffic
+              .filter(other => other.id !== car.id && Math.round(other.lane) === Math.round(car.lane) &&
+                (direction > 0 ? other.s > car.s : other.s < car.s))
+              .sort((a, b) => direction > 0 ? a.s - b.s : b.s - a.s)[0];
+            const gapAhead = laneAhead ? Math.abs(laneAhead.s - car.s) : Infinity;
+            if (laneAhead && gapAhead < 68 && laneAhead.speed < car.speed - 2) {
+              const sameDirectionLanes = direction > 0 ? [2, 3] : [0, 1];
+              const alternative = sameDirectionLanes.find(candidate => {
+                if (candidate === Math.round(car.lane)) return false;
+                const vehicles = current.traffic.filter(other => other.id !== car.id && Math.round(other.lane) === candidate);
+                const front = vehicles.filter(other => direction > 0 ? other.s > car.s : other.s < car.s)
+                  .sort((a, b) => direction > 0 ? a.s - b.s : b.s - a.s)[0];
+                const rear = vehicles.filter(other => direction > 0 ? other.s < car.s : other.s > car.s)
+                  .sort((a, b) => direction > 0 ? b.s - a.s : a.s - b.s)[0];
+                const frontGap = front ? Math.abs(front.s - car.s) : Infinity;
+                const rearGap = rear ? Math.abs(car.s - rear.s) : Infinity;
+                const hazardAhead = hazards.some(h => h.lane === candidate &&
+                  (direction > 0 ? h.s > car.s && h.s - car.s < 90 : h.s < car.s && car.s - h.s < 90));
+                return !hazardAhead && frontGap > 48 && rearGap > 32;
+              });
+              if (alternative !== undefined) car.laneTarget = alternative;
+            }
+          }
+          if (car.laneTarget !== undefined) {
+            car.lane += (car.laneTarget - car.lane) * Math.min(1, dt * 1.1);
+          }
           const nextSignal = signals
             .filter(signal => direction > 0 ? signal.s > car.s : signal.s < car.s)
             .sort((a, b) => direction > 0 ? a.s - b.s : b.s - a.s)[0];
@@ -405,7 +435,7 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
           const spawnLaneClear = current.traffic.every(other =>
             Math.round(other.lane) !== lane || Math.abs(other.s - spawnS) > 55);
           if (spawnLaneClear) {
-            current.traffic.push({ id, lane, s: spawnS, speed: Math.min(SPEED_LIMIT_MS, lane < 2 ? 15 + (id % 5) : 10 + (id % 7)), color: COLORS[id % COLORS.length] });
+            current.traffic.push({ id, lane, laneTarget: lane, s: spawnS, speed: Math.min(SPEED_LIMIT_MS, lane < 2 ? 15 + (id % 5) : 10 + (id % 7)), color: COLORS[id % COLORS.length] });
           }
           nextTrafficSpawnDistance = current.distance + 55 + (id % 3) * 24;
         }
