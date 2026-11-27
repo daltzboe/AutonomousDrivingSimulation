@@ -66,7 +66,7 @@ export default function Dashboard() {
 
   function reset() { setRunning(false); setProgress(0); setSpeed(0); setTicks(0); setPreviewLane(3); setPreviewSignal("GREEN"); setPreviewCollisions(0); setPreviewResetToken((value) => value + 1); }
   function run() { if (progress >= 100 || previewCollisions > 0) reset(); setRunning(true); }
-  function updatePreview(value: { speed: number; progress: number; elapsed: number; lane: number; signal: string; collisions: number }) { setSpeed(value.speed); setProgress(value.progress); setTicks(Math.round(value.elapsed * 10)); setPreviewLane(value.lane); setPreviewSignal(value.signal); setPreviewCollisions(value.collisions); }
+  function updatePreview(value: { speed: number; progress: number; elapsed: number; lane: number; signal: string; collisions: number }) { setSpeed(value.speed); setProgress(value.progress); setTicks(Math.round(value.elapsed * 10)); setPreviewLane(value.lane); setPreviewSignal(value.signal); setPreviewCollisions(value.collisions); if (value.collisions > 0 || value.progress >= 100) setRunning(false); }
 
   async function runBenchmark() {
     setBenchmarkLoading(true);
