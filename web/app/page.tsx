@@ -60,7 +60,7 @@ export default function Dashboard() {
 
   const obstacleCount = scenarios[scenario].obstacles.length;
 
-  const status = progress >= 100 ? "Route complete" : running ? "Driving" : progress > 0 ? "Paused" : "Ready at start";
+  const status = previewCollisions > 0 ? "Contact · reset" : progress >= 100 ? "Route complete" : running ? "Driving" : progress > 0 ? "Paused" : "Ready at start";
   const completion = Math.round(progress);
   const elapsed = (ticks * 0.1).toFixed(1);
 
@@ -136,10 +136,10 @@ export default function Dashboard() {
           <div className="page-heading"><div><div className="eyebrow">RESEARCH OVERVIEW <span>•</span> EXPERIMENT 001</div><h1>Autonomous Driving <em>Research</em></h1><p>Team research project · Dalton Opudo, Dexter & William. Evaluate controllers with reproducible Python experiments.</p></div><button className="export-btn" onClick={() => window.print()}>↥ <span>Export view</span></button></div>
 
           <div className="stats-grid">
-            <Stat label="SIMULATION STATUS" value={running ? "Running" : progress >= 100 ? "Complete" : "At start"} detail={running ? "Browser road simulation active" : progress === 0 ? "Ready at route start" : "Preview paused"} icon="◉" accent={running ? "green" : "blue"} />
+            <Stat label="SIMULATION STATUS" value={previewCollisions > 0 ? "Contact" : running ? "Running" : progress >= 100 ? "Complete" : "At start"} detail={previewCollisions > 0 ? "Reset after simulated contact" : running ? "Browser road simulation active" : progress === 0 ? "Ready at route start" : "Preview paused"} icon="◉" accent={running ? "green" : "blue"} />
             <Stat label="PREVIEW SPEED" value={speed.toFixed(1)} unit="m/s" detail="Live browser vehicle speed" icon="↗" accent="blue" />
             <Stat label="PREVIEW PROGRESS" value={completion.toString()} unit="%" detail="2.8 km route progress" icon="⌁" accent="orange" />
-            <Stat label="OBSTACLES DETECTED" value={String(obstacleCount)} detail="Static scenario objects" icon="◎" accent="purple" />
+            <Stat label="SCENARIO HAZARDS" value={String(obstacleCount)} detail="Configured road obstacles" icon="◎" accent="purple" />
           </div>
 
           <div className="section-row" id="simulation"><div><h2>Browser preview</h2><p>2.8 km browser-driving preview · live traffic, traffic signals, and controller behavior</p></div><div className="live-status"><span className={running ? "pulse-dot" : "muted-dot"} />{status}</div></div>
