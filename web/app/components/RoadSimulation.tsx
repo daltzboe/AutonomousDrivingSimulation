@@ -424,7 +424,7 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
                   const rear = vehicles
                     .filter(other => direction > 0 ? other.s < car.s : other.s > car.s)
                     .sort((a, b) => direction > 0 ? b.s - a.s : a.s - b.s)[0];
-                  const frontGap = front ? Math.abs(front.s - car.s) : Infinity;
+                  let frontGap = front ? Math.abs(front.s - car.s) : Infinity;
                   let rearGap = rear ? Math.abs(car.s - rear.s) : Infinity;
                   let rearClosingSpeed = rear ? Math.max(0, rear.speed - car.speed) : 0;
 
@@ -438,8 +438,7 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
                       : current.distance < car.s;
                     const egoGap = Math.abs(car.s - current.distance);
                     if (egoIsAhead && egoGap < frontGap) {
-                      // A vehicle ahead of this traffic car is a front constraint.
-                      // Treat it as occupied rather than assuming the lane is open.
+                      frontGap = egoGap;
                     } else if (!egoIsAhead && egoGap < rearGap) {
                       rearGap = egoGap;
                       rearClosingSpeed = Math.max(0, current.speed - car.speed);
