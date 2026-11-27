@@ -48,3 +48,10 @@ button:disabled { cursor: wait; opacity: .62; filter: saturate(.65); }
 .road-hud-dot.active{background:#4bd59d;box-shadow:0 0 10px #4bd59d88}
 .road-sim-hud .signal-red{color:#ff8580}.road-sim-hud .signal-yellow{color:#f2c56e}.road-sim-hud .signal-green{color:#70d8a8}
 @media(max-width:700px){.road-sim-canvas{height:clamp(390px,110vw,520px)}.road-sim-hud{gap:8px 10px;font-size:8px;padding:9px}.road-sim-hud span{white-space:nowrap}}
+
+/* Give the driving viewport priority over the side panels on desktop */
+@media(min-width:1101px){.simulation-grid{grid-template-columns:minmax(0,2.15fr) minmax(245px,.8fr);gap:16px}.driving-focus{min-width:0}}
+@media(min-width:821px) and (max-width:1100px){.simulation-grid{grid-template-columns:minmax(0,1.75fr) minmax(235px,.9fr)}}
+.road-sim-canvas{height:clamp(500px,48vw,720px)}
+.road-sim-wrap{box-shadow:inset 0 0 0 1px #2b3d48}
+@media(max-width:700px){.road-sim-canvas{height:clamp(430px,125vw,610px)}}
