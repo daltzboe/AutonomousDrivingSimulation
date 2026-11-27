@@ -48,7 +48,7 @@ The baseline controller computes lane-following steering and speed commands. The
 7. **Limitations:** Explain the simplified static-obstacle model and lane-width assumptions.
 8. **Next steps:** Moving traffic, camera perception, learning, and eventual CARLA evaluation.
 
-## Preliminary center-obstacle result
+## Final matched comparison report\n\nUse the dashboard's **Compare all 3 controllers** action for a matched scenario, export its JSON, and complete [the experiment report template](EXPERIMENT_REPORT_TEMPLATE.md). The report should include episode count, mean metrics, standard deviations when available, incomplete routes, and limitations. Do not use the preliminary single-run values below as final group results.\n\n## Preliminary center-obstacle result
 
 The following values are from the first one-episode center-obstacle experiment run during development. They are a preliminary demonstration, not a statistical evaluation.
 
