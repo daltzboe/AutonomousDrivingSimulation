@@ -38,7 +38,7 @@ export default function Dashboard() {
   const [speed, setSpeed] = useState(0);
   const [ticks, setTicks] = useState(0);
   const [previewResetToken, setPreviewResetToken] = useState(0);
-  const [previewLane, setPreviewLane] = useState(2);
+  const [previewLane, setPreviewLane] = useState(3);
   const [previewSignal, setPreviewSignal] = useState("GREEN");
   const [previewCollisions, setPreviewCollisions] = useState(0);
   const [benchmark, setBenchmark] = useState<BenchmarkReport | null>(null);
@@ -64,7 +64,7 @@ export default function Dashboard() {
   const completion = Math.round(progress);
   const elapsed = (ticks * 0.1).toFixed(1);
 
-  function reset() { setRunning(false); setProgress(0); setSpeed(0); setTicks(0); setPreviewLane(2); setPreviewSignal("GREEN"); setPreviewCollisions(0); setPreviewResetToken((value) => value + 1); }
+  function reset() { setRunning(false); setProgress(0); setSpeed(0); setTicks(0); setPreviewLane(3); setPreviewSignal("GREEN"); setPreviewCollisions(0); setPreviewResetToken((value) => value + 1); }
   function run() { if (progress >= 100) reset(); setRunning(true); }
   function updatePreview(value: { speed: number; progress: number; elapsed: number; lane: number; signal: string; collisions: number }) { setSpeed(value.speed); setProgress(value.progress); setTicks(Math.round(value.elapsed * 10)); setPreviewLane(value.lane); setPreviewSignal(value.signal); setPreviewCollisions(value.collisions); }
 
