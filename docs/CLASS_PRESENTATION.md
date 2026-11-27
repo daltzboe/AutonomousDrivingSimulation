@@ -4,6 +4,12 @@
 
 **Autonomous Driving Simulation: Lane Following, Emergency Braking, and Obstacle Avoidance**
 
+## Team
+
+**Dalton Opudo · Dexter · William**
+
+The team work plan assigns simulation and integration, experiment design and validation, and dashboard and presentation workstreams. Each member should document their actual implementation and evidence in [the contribution checklist](TEAM_PROJECT_PLAN.md); do not claim work that was not completed.
+
 ## One-sentence project summary
 
 This project builds a repeatable 2D autonomous-driving simulator and compares pure-pursuit lane following, range-sensor emergency braking, and a steering-based local obstacle-avoidance planner under controlled scenarios.
