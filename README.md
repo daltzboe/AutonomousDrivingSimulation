@@ -2,6 +2,10 @@
 
 A UTSA computer science research project for developing and evaluating autonomous-driving controllers in a reproducible simulation. The repository includes a lightweight interactive 2D driving environment, deterministic obstacle scenarios, range-sensor emergency braking, automated tests, and experiment telemetry. CARLA integration and camera-based learning remain planned research stages.
 
+## Project team
+
+Three-person team: **Dalton Opudo, Dexter, and William**. See the [team work plan and contribution checklist](docs/TEAM_PROJECT_PLAN.md) for proposed workstreams, milestones, and each member's contribution log.
+
 ## Research question
 
 How do different autonomous-driving control approaches compare when evaluated on the same simulated routes and scenarios?
