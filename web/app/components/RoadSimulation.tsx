@@ -45,6 +45,7 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
     let last = 0;
     let lastTelemetry = 0;
     let spawnId = 0;
+    let nextTrafficSpawnDistance = 245;
     let hazards: Hazard[] = [];
     let signals: Signal[] = [];
     const s = stateRef.current;
@@ -57,14 +58,15 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
       if (scenario === "multiple") hazards.push({ s: 300, lane: 2, kind: "barrier" }, { s: 345, lane: 3, kind: "cone" }, { s: 760, lane: 3, kind: "barrier" }, { s: 1280, lane: 2, kind: "cone" }, { s: 1810, lane: 3, kind: "barrier" }, { s: 2250, lane: 2, kind: "cone" });
       signals = [480, 1040, 1580, 2180, 2580].map((distance, i) => ({ s: distance, phase: i % 3 === 0 ? "red" : "green" }));
       s.traffic = [
-        { id: 1, lane: 0, s: 180, speed: 16, color: COLORS[0] },
-        { id: 2, lane: 1, s: 270, speed: 19, color: COLORS[1] },
-        { id: 3, lane: 3, s: 150, speed: 12, color: COLORS[2] },
-        { id: 4, lane: 0, s: 430, speed: 18, color: COLORS[3] },
-        { id: 5, lane: 1, s: 620, speed: 15, color: COLORS[4] },
-        { id: 6, lane: 3, s: 540, speed: 16, color: COLORS[5] },
+        { id: 1, lane: 0, s: 18, speed: 16, color: COLORS[0] },
+        { id: 2, lane: 1, s: 42, speed: 19, color: COLORS[1] },
+        { id: 3, lane: 3, s: 34, speed: 12, color: COLORS[2] },
+        { id: 4, lane: 0, s: 68, speed: 18, color: COLORS[3] },
+        { id: 5, lane: 1, s: 86, speed: 15, color: COLORS[4] },
+        { id: 6, lane: 3, s: 112, speed: 16, color: COLORS[5] },
       ];
       spawnId = 7;
+      nextTrafficSpawnDistance = 245;
     };
     createWorld();
 
@@ -219,7 +221,7 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
       if (current.crashed) {
         ctx.fillStyle = "#7b1f27cc"; ctx.fillRect(width * 0.18, height * 0.38, width * 0.64, 62);
         ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.font = "700 18px sans-serif"; ctx.fillText("CONTACT DETECTED · RESET TO CONTINUE", width / 2, height * 0.38 + 37);
-      } else if (!running) {
+      } else if (!runningRef.current) {
         ctx.fillStyle = "#07121dcc"; ctx.fillRect(width * 0.28, height * 0.43, width * 0.44, 42);
         ctx.fillStyle = "#dceaf4"; ctx.textAlign = "center"; ctx.font = "600 13px sans-serif";
         ctx.fillText(current.distance === 0 ? "PRESS PLAY TO START FROM START" : "PREVIEW PAUSED", width / 2, height * 0.43 + 26);
@@ -270,9 +272,11 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
         current.distance += current.speed * dt;
         current.traffic.forEach(car => { car.s += (car.lane < 2 ? -car.speed : car.speed) * dt; });
         current.traffic = current.traffic.filter(car => car.s > current.distance - 130 && car.s < current.distance + 260);
-        if (current.distance > 180 && current.traffic.length < 9 && Math.random() < dt * 0.45) {
-          const lane = Math.floor(Math.random() * 4);
-          current.traffic.push({ id: spawnId++, lane, s: current.distance + 110 + Math.random() * 180, speed: lane < 2 ? 15 + Math.random() * 8 : 10 + Math.random() * 9, color: COLORS[Math.floor(Math.random() * COLORS.length)] });
+        if (current.distance >= nextTrafficSpawnDistance && current.traffic.length < 9) {
+          const id = spawnId++;
+          const lane = id % 4;
+          current.traffic.push({ id, lane, s: current.distance + 105 + (id % 4) * 24, speed: lane < 2 ? 15 + (id % 5) : 10 + (id % 7), color: COLORS[id % COLORS.length] });
+          nextTrafficSpawnDistance = current.distance + 145 + (id % 3) * 42;
         }
         for (const hazard of hazards) {
           if (Math.abs(hazard.s - current.distance) < 3.2 && Math.abs(current.lane - hazard.lane) < 0.42) {
