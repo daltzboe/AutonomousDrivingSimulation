@@ -5,6 +5,7 @@ import math
 
 from autodrive_sim.controllers import (
     ControlCommand,
+    IntelligentDrivingController,
     LaneFollowingController,
     ObstacleAvoidanceController,
     SteeringObstacleAvoidanceController,
@@ -77,7 +78,7 @@ class Simulation:
                 self.controller.control(self.vehicle, self.road, self.obstacles)
                 if isinstance(
                     self.controller,
-                    (ObstacleAvoidanceController, SteeringObstacleAvoidanceController),
+                    (ObstacleAvoidanceController, SteeringObstacleAvoidanceController, IntelligentDrivingController),
                 )
                 else self.controller.control(self.vehicle, self.road)
             )
