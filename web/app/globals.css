@@ -13,3 +13,5 @@
 
 .comparison-export{display:flex;align-items:center;gap:10px;padding:12px 17px 4px}.comparison-export>span{font-size:9px;color:#8093a6}.comparison-export .secondary-btn{font-size:9px;padding:7px 10px}
 @media(max-width:560px){.comparison-export{align-items:flex-start;flex-direction:column;gap:6px}}
+
+.completion-cell small{font:8px 'DM Mono';color:#8b9eaf;white-space:nowrap}
