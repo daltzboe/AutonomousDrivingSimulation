@@ -50,21 +50,6 @@ export default function Dashboard() {
       setTicks((t) => t + 1);
       setSpeed((s) => Math.max(28, Math.min(62, s + (Math.random() - 0.48) * 2)));
     }, 100);
-    async function runComparison() {
-    setComparisonLoading(true);
-    setBenchmarkError("");
-    try {
-      const response = await fetch(`${simulatorApi}/api/compare`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scenario, episodes: Math.min(episodeCount, 25) }),
-      });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || `Comparison failed (${response.status}).`);
-      setComparison(payload.report as ComparisonReport);
-    } catch (error) {
-      setBenchmarkError(error instanceof Error ? error.message : "Could not connect to the Python simulator.");
-    } finally { setComparisonLoading(false); }
-  }
 
   return () => window.clearInterval(timer);
   }, [running]);
@@ -96,6 +81,23 @@ export default function Dashboard() {
       setBenchmarkLoading(false);
     }
   }
+
+  async function runComparison() {
+  setComparisonLoading(true);
+  setBenchmarkError("");
+  try {
+    const response = await fetch(`${simulatorApi}/api/compare`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scenario, episodes: Math.min(episodeCount, 25) }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || `Comparison failed (${response.status}).`);
+    setComparison(payload.report as ComparisonReport);
+  } catch (error) {
+    setBenchmarkError(error instanceof Error ? error.message : "Could not connect to the Python simulator.");
+  } finally { setComparisonLoading(false); }
+  }
+
 
   return (
     <main className="shell">
