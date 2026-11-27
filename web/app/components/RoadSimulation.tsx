@@ -4,12 +4,13 @@ import { useEffect, useRef, useState } from "react";
 
 type Controller = "baseline" | "safety" | "steering";
 type Scenario = "clear" | "center" | "edge" | "outside" | "multiple";
+type DrivingMode = "CRUISE" | "APPROACH" | "AVOID" | "BRAKE";
 type Props = {
   running: boolean;
   controller: Controller;
   scenario: Scenario;
   resetToken: number;
-  onTelemetry: (value: { speed: number; progress: number; elapsed: number; lane: number; signal: string; collisions: number }) => void;
+  onTelemetry: (value: { speed: number; progress: number; elapsed: number; lane: number; signal: string; collisions: number; mode: DrivingMode | "—" }) => void;
 };
 
 type TrafficCar = { id: number; lane: number; laneTarget?: number; laneChangeCooldown?: number; s: number; speed: number; color: string };
@@ -26,15 +27,15 @@ function clamp(v: number, min: number, max: number) { return Math.max(min, Math.
 
 export default function RoadSimulation({ running, controller, scenario, resetToken, onTelemetry }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const stateRef = useRef({ distance: 0, speed: 0, elapsed: 0, lane: 3, laneTarget: 3, collisions: 0, signal: "GREEN", crashed: false, traffic: [] as TrafficCar[] });
+  const stateRef = useRef({ distance: 0, speed: 0, elapsed: 0, lane: 3, laneTarget: 3, collisions: 0, signal: "GREEN", mode: "CRUISE" as DrivingMode, crashed: false, traffic: [] as TrafficCar[] });
   const telemetryRef = useRef(onTelemetry);
   const runningRef = useRef(running);
   telemetryRef.current = onTelemetry;
   runningRef.current = running;
-  const [hud, setHud] = useState({ speed: 0, distance: 0, lane: 2, signal: "GREEN", collisions: 0, status: "READY AT START" });
+  const [hud, setHud] = useState({ speed: 0, distance: 0, lane: 2, signal: "GREEN", collisions: 0, mode: "CRUISE" as DrivingMode, status: "READY AT START" });
 
   useEffect(() => {
-    stateRef.current = { distance: 0, speed: 0, elapsed: 0, lane: 2, laneTarget: 2, collisions: 0, signal: "GREEN", crashed: false, traffic: [] };
+    stateRef.current = { distance: 0, speed: 0, elapsed: 0, lane: 2, laneTarget: 2, collisions: 0, signal: "GREEN", mode: "CRUISE" as DrivingMode, crashed: false, traffic: [] };
     setHud({ speed: 0, distance: 0, lane: 2, signal: "GREEN", collisions: 0, status: "READY AT START" });
   }, [resetToken, controller, scenario]);
 
@@ -422,6 +423,21 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
           const speedMatchedTarget = sameLaneTraffic.speed + Math.max(0, carGap - 20) * 0.16;
           targetSpeed = Math.min(targetSpeed, safeFollowingSpeed, speedMatchedTarget);
         }
+        if (controller === "intelligent") {
+          const changingLane = desiredLane !== egoLane || laneChangeInProgress;
+          const brakingForObstacle = brake && needsObstacleAvoidance && desiredLane === egoLane;
+          const brakingForSignal = brake && upcomingSignal !== undefined &&
+            upcomingSignal.s - current.distance < 110;
+          current.mode = changingLane
+            ? "AVOID"
+            : brakingForObstacle || brakingForSignal
+              ? "BRAKE"
+              : needsObstacleAvoidance || needsTrafficAvoidance
+                ? "APPROACH"
+                : "CRUISE";
+        } else {
+          current.mode = "CRUISE";
+        }
         if (brake && targetSpeed > current.speed) targetSpeed = current.speed;
         current.laneTarget = desiredLane;
         current.lane += (current.laneTarget - current.lane) * Math.min(1, dt * 1.25);
@@ -658,8 +674,8 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
       if (timestamp - lastTelemetry > 160) {
         lastTelemetry = timestamp;
         const progress = Math.min(100, current.distance / ROUTE_LENGTH * 100);
-        setHud({ speed: current.speed, distance: current.distance, lane: current.lane, signal: current.signal, collisions: current.collisions, status: current.crashed ? "COLLISION · RESET" : current.distance >= ROUTE_LENGTH ? "ROUTE COMPLETE" : runningRef.current ? "DRIVING" : current.distance > 0 ? "PAUSED" : "READY AT START" });
-        telemetryRef.current({ speed: current.speed, progress, elapsed: current.elapsed, lane: current.lane, signal: current.signal, collisions: current.collisions });
+        setHud({ speed: current.speed, distance: current.distance, lane: current.lane, signal: current.signal, collisions: current.collisions, mode: current.mode, status: current.crashed ? "COLLISION · RESET" : current.distance >= ROUTE_LENGTH ? "ROUTE COMPLETE" : runningRef.current ? "DRIVING" : current.distance > 0 ? "PAUSED" : "READY AT START" });
+        telemetryRef.current({ speed: current.speed, progress, elapsed: current.elapsed, lane: current.lane, signal: current.signal, collisions: current.collisions, mode: controller === "intelligent" ? current.mode : "—" });
       }
       frame = requestAnimationFrame(tick);
     };
@@ -676,7 +692,7 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
         <span>{hud.distance.toFixed(0)} / {ROUTE_LENGTH} m</span>
         <span>LANE {Math.round(hud.lane) + 1}</span>
         <span className={hud.signal === "RED" ? "signal-red" : hud.signal === "YELLOW" ? "signal-yellow" : "signal-green"}>SIGNAL {hud.signal}</span>
-        <span>CONTACTS {hud.collisions}</span>
+        <span>DECISION {controller === "intelligent" ? hud.mode : "—"}</span><span>CONTACTS {hud.collisions}</span>
       </div>
     </div>
   );
