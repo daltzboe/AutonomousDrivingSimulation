@@ -59,16 +59,29 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
       if (scenario === "outside") hazards.push({ s: 520, lane: 1, kind: "barrier" }, { s: 1180, lane: 0, kind: "cone" }, { s: 2080, lane: 3, kind: "barrier" });
       if (scenario === "multiple") hazards.push({ s: 300, lane: 3, kind: "barrier" }, { s: 345, lane: 2, kind: "cone" }, { s: 760, lane: 2, kind: "barrier" }, { s: 1280, lane: 3, kind: "cone" }, { s: 1810, lane: 2, kind: "barrier" }, { s: 2250, lane: 3, kind: "cone" });
       signals = [480, 1040, 1580, 2180, 2580].map((distance, i) => ({ s: distance, phase: i % 3 === 0 ? "red" : "green" }));
+      // Start with a balanced stream of traffic in every lane. Vehicles are
+      // staggered longitudinally so the road feels populated without spawning
+      // cars on top of one another or immediately in the ego vehicle's path.
       s.traffic = [
-        { id: 1, lane: 0, laneTarget: 0, s: 565, speed: 16, color: COLORS[0] },
-        { id: 2, lane: 1, laneTarget: 1, s: 690, speed: 19, color: COLORS[1] },
-        { id: 3, lane: 3, laneTarget: 3, s: 125, speed: 12, color: COLORS[2] },
-        { id: 4, lane: 0, laneTarget: 0, s: 980, speed: 18, color: COLORS[3] },
-        { id: 5, lane: 1, laneTarget: 1, s: 1125, speed: 15, color: COLORS[4] },
-        { id: 6, lane: 3, laneTarget: 3, s: 255, speed: 16, color: COLORS[5] },
+        { id: 1, lane: 0, laneTarget: 0, s: 470, speed: 16, color: COLORS[0] },
+        { id: 2, lane: 0, laneTarget: 0, s: 890, speed: 18, color: COLORS[1] },
+        { id: 3, lane: 0, laneTarget: 0, s: 1320, speed: 15, color: COLORS[2] },
+        { id: 4, lane: 0, laneTarget: 0, s: 1740, speed: 19, color: COLORS[3] },
+        { id: 5, lane: 1, laneTarget: 1, s: 620, speed: 19, color: COLORS[4] },
+        { id: 6, lane: 1, laneTarget: 1, s: 1040, speed: 15, color: COLORS[5] },
+        { id: 7, lane: 1, laneTarget: 1, s: 1460, speed: 17, color: COLORS[0] },
+        { id: 8, lane: 1, laneTarget: 1, s: 1880, speed: 14, color: COLORS[1] },
+        { id: 9, lane: 2, laneTarget: 2, s: 430, speed: 12, color: COLORS[2] },
+        { id: 10, lane: 2, laneTarget: 2, s: 820, speed: 16, color: COLORS[3] },
+        { id: 11, lane: 2, laneTarget: 2, s: 1210, speed: 13, color: COLORS[4] },
+        { id: 12, lane: 2, laneTarget: 2, s: 1610, speed: 17, color: COLORS[5] },
+        { id: 13, lane: 3, laneTarget: 3, s: 300, speed: 12, color: COLORS[0] },
+        { id: 14, lane: 3, laneTarget: 3, s: 700, speed: 16, color: COLORS[1] },
+        { id: 15, lane: 3, laneTarget: 3, s: 1100, speed: 13, color: COLORS[2] },
+        { id: 16, lane: 3, laneTarget: 3, s: 1510, speed: 17, color: COLORS[3] },
       ];
-      spawnId = 7;
-      nextTrafficSpawnDistance = 245;
+      spawnId = 17;
+      nextTrafficSpawnDistance = 150;
     };
     createWorld();
 
@@ -467,7 +480,7 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
           car.s += direction * car.speed * dt;
         });
         current.traffic = current.traffic.filter(car => car.s > current.distance - 130 && car.s < current.distance + 260);
-        if (current.distance >= nextTrafficSpawnDistance && current.traffic.length < 18) {
+        if (current.distance >= nextTrafficSpawnDistance && current.traffic.length < 30) {
           // Denser, staggered traffic makes the lane-selection/overtake behavior
           // visible without placing a new car directly on top of existing traffic.
           const id = spawnId++;
@@ -478,7 +491,7 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
           if (spawnLaneClear) {
             current.traffic.push({ id, lane, laneTarget: lane, s: spawnS, speed: Math.min(SPEED_LIMIT_MS, lane < 2 ? 15 + (id % 5) : 10 + (id % 7)), color: COLORS[id % COLORS.length] });
           }
-          nextTrafficSpawnDistance = current.distance + 55 + (id % 3) * 24;
+          nextTrafficSpawnDistance = current.distance + 38 + (id % 3) * 16;
         }
         for (const hazard of hazards) {
           if (Math.abs(hazard.s - current.distance) < 3.2 && Math.abs(current.lane - hazard.lane) < 0.42) {
