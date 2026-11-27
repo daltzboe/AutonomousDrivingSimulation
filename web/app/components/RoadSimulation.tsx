@@ -355,8 +355,9 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
         current.distance += current.speed * dt;
         current.traffic.forEach(car => {
           const direction = car.lane < 2 ? -1 : 1;
-          // Traffic vehicles may overtake a slow/stopped vehicle in their own
-          // direction, but only after checking front and rear clearance.
+          // Traffic vehicles can route around either a stopped vehicle or a
+          // fixed obstacle. A car must not wait forever behind a blocked leader
+          // when the neighboring lane has a safe opening.
           const laneChanging = car.laneTarget !== undefined && Math.abs(car.lane - car.laneTarget) > 0.08;
           if (!laneChanging) {
             const laneAhead = current.traffic
@@ -364,22 +365,39 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
                 (direction > 0 ? other.s > car.s : other.s < car.s))
               .sort((a, b) => direction > 0 ? a.s - b.s : b.s - a.s)[0];
             const gapAhead = laneAhead ? Math.abs(laneAhead.s - car.s) : Infinity;
-            if (laneAhead && gapAhead < 68 && laneAhead.speed < car.speed - 2) {
+            const obstacleAhead = hazards
+              .filter(h => Math.round(h.lane) === Math.round(car.lane) &&
+                (direction > 0 ? h.s > car.s : h.s < car.s))
+              .sort((a, b) => direction > 0 ? a.s - b.s : b.s - a.s)[0];
+            const obstacleGap = obstacleAhead ? Math.abs(obstacleAhead.s - car.s) : Infinity;
+            const blockedByVehicle = laneAhead !== undefined && gapAhead < 82 &&
+              (laneAhead.speed < car.speed - 1.2 || gapAhead < 38);
+            const blockedByObstacle = obstacleAhead !== undefined && obstacleGap < Math.max(105, car.speed * 4.5);
+            if (blockedByVehicle || blockedByObstacle) {
               const sameDirectionLanes = direction > 0 ? [2, 3] : [0, 1];
-              const alternative = sameDirectionLanes.find(candidate => {
-                if (candidate === Math.round(car.lane)) return false;
-                const vehicles = current.traffic.filter(other => other.id !== car.id && Math.round(other.lane) === candidate);
-                const front = vehicles.filter(other => direction > 0 ? other.s > car.s : other.s < car.s)
-                  .sort((a, b) => direction > 0 ? a.s - b.s : b.s - a.s)[0];
-                const rear = vehicles.filter(other => direction > 0 ? other.s < car.s : other.s > car.s)
-                  .sort((a, b) => direction > 0 ? b.s - a.s : a.s - b.s)[0];
-                const frontGap = front ? Math.abs(front.s - car.s) : Infinity;
-                const rearGap = rear ? Math.abs(car.s - rear.s) : Infinity;
-                const hazardAhead = hazards.some(h => h.lane === candidate &&
-                  (direction > 0 ? h.s > car.s && h.s - car.s < 90 : h.s < car.s && car.s - h.s < 90));
-                return !hazardAhead && frontGap > 48 && rearGap > 32;
-              });
-              if (alternative !== undefined) car.laneTarget = alternative;
+              const alternatives = sameDirectionLanes
+                .filter(candidate => candidate !== Math.round(car.lane))
+                .map(candidate => {
+                  const vehicles = current.traffic.filter(other =>
+                    other.id !== car.id && Math.round(other.lane) === candidate);
+                  const front = vehicles
+                    .filter(other => direction > 0 ? other.s > car.s : other.s < car.s)
+                    .sort((a, b) => direction > 0 ? a.s - b.s : b.s - a.s)[0];
+                  const rear = vehicles
+                    .filter(other => direction > 0 ? other.s < car.s : other.s > car.s)
+                    .sort((a, b) => direction > 0 ? b.s - a.s : a.s - b.s)[0];
+                  const frontGap = front ? Math.abs(front.s - car.s) : Infinity;
+                  const rearGap = rear ? Math.abs(car.s - rear.s) : Infinity;
+                  const rearClosingSpeed = rear ? Math.max(0, rear.speed - car.speed) : 0;
+                  const rearSafeGap = Math.max(28, 20 + rearClosingSpeed * 1.5);
+                  const blockedLane = hazards.some(h => Math.round(h.lane) === candidate &&
+                    (direction > 0 ? h.s > car.s && h.s - car.s < 125 : h.s < car.s && car.s - h.s < 125));
+                  const frontIsTooClose = frontGap < 58;
+                  return { lane: candidate, frontGap, safe: !blockedLane && !frontIsTooClose && rearGap > rearSafeGap };
+                })
+                .filter(candidate => candidate.safe)
+                .sort((a, b) => b.frontGap - a.frontGap);
+              if (alternatives.length > 0) car.laneTarget = alternatives[0].lane;
             }
           }
           if (car.laneTarget !== undefined) {
