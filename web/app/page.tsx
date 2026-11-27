@@ -109,6 +109,17 @@ export default function Dashboard() {
   }
 
 
+  function exportComparison() {
+    if (!comparison) return;
+    const blob = new Blob([JSON.stringify(comparison, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `autonomy-controller-comparison-${comparison.scenario}-${comparison.episode_count_per_controller}episodes.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <main className="shell">
       <aside className="sidebar">
@@ -165,7 +176,7 @@ export default function Dashboard() {
           </div>
 
           <div className="section-row benchmark-heading"><div><h2>Controller comparison</h2><p>Matched scenario · Python benchmark output</p></div><button className="secondary-btn" disabled={comparisonLoading} onClick={() => void runComparison()}>{comparisonLoading ? "Comparing…" : "Compare all 3 controllers"}</button></div>
-          {comparison && <div className="panel comparison-panel"><div className="panel-head"><div><strong>Matched controller benchmark</strong><small>{comparison.scenario.toUpperCase()} · {comparison.episode_count_per_controller} EPISODES EACH</small></div><span className="dataset-label">PYTHON OUTPUT</span></div><div className="comparison-table"><div className="comparison-header"><span>CONTROLLER</span><span>COLLISIONS ↓</span><span>COMPLETION ↑</span><span>LANE ERROR ↓</span></div>{comparison.reports.map((item) => <div className="comparison-row" key={item.controller}><b>{item.controller === "baseline" ? "Pure pursuit" : item.controller === "safety" ? "Emergency brake" : "Steering avoidance"}</b><span>{item.aggregate.mean_collision_events.toFixed(2)}</span><span className="completion-cell"><div className="comparison-meter"><i style={{width: `${Math.max(0,Math.min(100,item.aggregate.mean_route_completion_pct))}%`}} /></div><strong>{item.aggregate.mean_route_completion_pct.toFixed(1)}%</strong></span><span>{item.aggregate.mean_lane_deviation_m == null ? "N/A" : `${item.aggregate.mean_lane_deviation_m.toFixed(3)} m`}</span></div>)}</div><p className="comparison-note">{comparison.interpretation} Deterministic repeats are consistency checks, not independent randomized trials.</p></div>}
+          {comparison && <div className="panel comparison-panel"><div className="panel-head"><div><strong>Matched controller benchmark</strong><small>{comparison.scenario.toUpperCase()} · {comparison.episode_count_per_controller} EPISODES EACH</small></div><span className="dataset-label">PYTHON OUTPUT</span></div><div className="comparison-export"><button className="secondary-btn" onClick={exportComparison}>↓ Download JSON data</button><span>Machine-readable report for your team's analysis</span></div><div className="comparison-table"><div className="comparison-header"><span>CONTROLLER</span><span>COLLISIONS ↓</span><span>COMPLETION ↑</span><span>LANE ERROR ↓</span></div>{comparison.reports.map((item) => <div className="comparison-row" key={item.controller}><b>{item.controller === "baseline" ? "Pure pursuit" : item.controller === "safety" ? "Emergency brake" : "Steering avoidance"}</b><span>{item.aggregate.mean_collision_events.toFixed(2)}</span><span className="completion-cell"><div className="comparison-meter"><i style={{width: `${Math.max(0,Math.min(100,item.aggregate.mean_route_completion_pct))}%`}} /></div><strong>{item.aggregate.mean_route_completion_pct.toFixed(1)}%</strong></span><span>{item.aggregate.mean_lane_deviation_m == null ? "N/A" : `${item.aggregate.mean_lane_deviation_m.toFixed(3)} m`}</span></div>)}</div><p className="comparison-note">{comparison.interpretation} Deterministic repeats are consistency checks, not independent randomized trials.</p></div>}
           <footer><span>Autonomy Lab <b>·</b> UTSA Computer Science Research Project</span><span>SIMULATION BUILD 0.1.0 <b>·</b> NOT FOR REAL-WORLD VEHICLE CONTROL</span></footer>
         </div>
       </section>
