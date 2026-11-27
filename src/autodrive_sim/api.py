@@ -19,7 +19,7 @@ from autodrive_sim.benchmark import SCENARIOS, run_episode
 
 HOST = "127.0.0.1"
 PORT = 8000
-CONTROLLERS = {"baseline", "safety", "steering"}
+CONTROLLERS = {"baseline", "safety", "steering", "intelligent"}
 ALLOWED_ORIGINS = {
     "http://localhost:3000",
     "http://127.0.0.1:3000",
@@ -68,7 +68,7 @@ def run_benchmark(controller: str, scenario: str, episodes: int) -> dict:
 
 def run_controller_comparison(scenario: str, episodes: int) -> dict:
     """Evaluate all controllers on the same deterministic scenario."""
-    reports = [run_benchmark(name, scenario, episodes) for name in ("baseline", "safety", "steering")]
+    reports = [run_benchmark(name, scenario, episodes) for name in ("baseline", "safety", "steering", "intelligent")]
     return {
         "scenario": scenario,
         "simulator": "lightweight_2d",
@@ -137,7 +137,7 @@ class SimulatorAPIHandler(BaseHTTPRequestHandler):
             scenario = payload.get("scenario", "center")
             episodes = payload.get("episodes", 1)
             if path == "/api/benchmark" and (not isinstance(controller, str) or controller not in CONTROLLERS):
-                raise ValueError("Choose baseline, safety, or steering controller.")
+                raise ValueError("Choose baseline, safety, steering, or intelligent controller.")
             if not isinstance(scenario, str) or scenario not in SCENARIOS:
                 raise ValueError(f"Choose one of these scenarios: {', '.join(SCENARIOS)}.")
             maximum = 25 if path == "/api/compare" else 100
