@@ -24,7 +24,7 @@ function clamp(v: number, min: number, max: number) { return Math.max(min, Math.
 
 export default function RoadSimulation({ running, controller, scenario, resetToken, onTelemetry }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const stateRef = useRef({ distance: 0, speed: 0, elapsed: 0, lane: 2, laneTarget: 2, collisions: 0, signal: "GREEN", crashed: false, traffic: [] as TrafficCar[] });
+  const stateRef = useRef({ distance: 0, speed: 0, elapsed: 0, lane: 3, laneTarget: 3, collisions: 0, signal: "GREEN", crashed: false, traffic: [] as TrafficCar[] });
   const telemetryRef = useRef(onTelemetry);
   const runningRef = useRef(running);
   telemetryRef.current = onTelemetry;
@@ -52,10 +52,10 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
 
     const createWorld = () => {
       hazards = [];
-      if (scenario === "center") hazards.push({ s: 330, lane: 2, kind: "barrier" }, { s: 1120, lane: 3, kind: "cone" }, { s: 1920, lane: 2, kind: "barrier" });
-      if (scenario === "edge") hazards.push({ s: 390, lane: 2, kind: "cone" }, { s: 960, lane: 3, kind: "barrier" }, { s: 1660, lane: 3, kind: "cone" });
-      if (scenario === "outside") hazards.push({ s: 520, lane: 1, kind: "barrier" }, { s: 1180, lane: 0, kind: "cone" }, { s: 2080, lane: 2, kind: "barrier" });
-      if (scenario === "multiple") hazards.push({ s: 300, lane: 2, kind: "barrier" }, { s: 345, lane: 3, kind: "cone" }, { s: 760, lane: 3, kind: "barrier" }, { s: 1280, lane: 2, kind: "cone" }, { s: 1810, lane: 3, kind: "barrier" }, { s: 2250, lane: 2, kind: "cone" });
+      if (scenario === "center") hazards.push({ s: 330, lane: 3, kind: "barrier" }, { s: 1120, lane: 2, kind: "cone" }, { s: 1920, lane: 3, kind: "barrier" });
+      if (scenario === "edge") hazards.push({ s: 390, lane: 3, kind: "cone" }, { s: 960, lane: 2, kind: "barrier" }, { s: 1660, lane: 2, kind: "cone" });
+      if (scenario === "outside") hazards.push({ s: 520, lane: 1, kind: "barrier" }, { s: 1180, lane: 0, kind: "cone" }, { s: 2080, lane: 3, kind: "barrier" });
+      if (scenario === "multiple") hazards.push({ s: 300, lane: 3, kind: "barrier" }, { s: 345, lane: 2, kind: "cone" }, { s: 760, lane: 2, kind: "barrier" }, { s: 1280, lane: 3, kind: "cone" }, { s: 1810, lane: 2, kind: "barrier" }, { s: 2250, lane: 3, kind: "cone" });
       signals = [480, 1040, 1580, 2180, 2580].map((distance, i) => ({ s: distance, phase: i % 3 === 0 ? "red" : "green" }));
       s.traffic = [
         { id: 1, lane: 0, s: 18, speed: 16, color: COLORS[0] },
