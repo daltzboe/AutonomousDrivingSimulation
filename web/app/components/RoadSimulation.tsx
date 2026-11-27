@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-type Controller = "baseline" | "safety" | "steering";
+type Controller = "baseline" | "safety" | "steering" | "intelligent";
 type Scenario = "clear" | "center" | "edge" | "outside" | "multiple";
 type DrivingMode = "CRUISE" | "APPROACH" | "AVOID" | "BRAKE";
 type Props = {
@@ -36,7 +36,7 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
 
   useEffect(() => {
     stateRef.current = { distance: 0, speed: 0, elapsed: 0, lane: 2, laneTarget: 2, collisions: 0, signal: "GREEN", mode: "CRUISE" as DrivingMode, crashed: false, traffic: [] };
-    setHud({ speed: 0, distance: 0, lane: 2, signal: "GREEN", collisions: 0, status: "READY AT START" });
+    setHud({ speed: 0, distance: 0, lane: 2, signal: "GREEN", collisions: 0, mode: "CRUISE", status: "READY AT START" });
   }, [resetToken, controller, scenario]);
 
   useEffect(() => {
