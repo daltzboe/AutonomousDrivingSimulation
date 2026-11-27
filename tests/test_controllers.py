@@ -4,6 +4,8 @@ import unittest
 
 from autodrive_sim.controllers import (
     LaneFollowingController,
+    DrivingMode,
+    IntelligentDrivingController,
     ObstacleAvoidanceController,
     SteeringObstacleAvoidanceController,
 )
@@ -126,6 +128,42 @@ class SteeringObstacleAvoidanceControllerTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             SteeringObstacleAvoidanceController(vehicle_radius_m=0.0)
 
+
+
+class IntelligentDrivingControllerTests(unittest.TestCase):
+    def test_clear_road_uses_cruise_mode(self) -> None:
+        controller = IntelligentDrivingController()
+        command = controller.control(Vehicle(speed=8.0), Road(), ())
+        self.assertEqual(controller.mode, DrivingMode.CRUISE)
+        self.assertGreaterEqual(command.throttle, 0.0)
+
+    def test_distant_obstacle_prepares_approach_without_lane_change(self) -> None:
+        road = Road(lane_width=4.8)
+        controller = IntelligentDrivingController()
+        vehicle = Vehicle(x=50.0, y=road.center_y(50.0), speed=10.0)
+        obstacle = Obstacle(x=90.0, y=road.center_y(90.0), radius=0.35)
+        command = controller.control(vehicle, road, (obstacle,))
+        self.assertEqual(controller.mode, DrivingMode.APPROACH)
+        self.assertEqual(command.steering, 0.0)
+        self.assertLess(command.throttle, 0.0 + 1.0)
+
+    def test_nearby_obstacle_uses_avoid_mode(self) -> None:
+        road = Road(lane_width=4.8)
+        controller = IntelligentDrivingController()
+        vehicle = Vehicle(x=70.0, y=road.center_y(70.0), speed=10.0)
+        obstacle = Obstacle(x=100.0, y=road.center_y(100.0), radius=0.35)
+        command = controller.control(vehicle, road, (obstacle,))
+        self.assertEqual(controller.mode, DrivingMode.AVOID)
+        self.assertNotEqual(command.steering, 0.0)
+
+    def test_unavoidable_obstacle_uses_brake_mode(self) -> None:
+        road = Road(lane_width=3.6)
+        controller = IntelligentDrivingController()
+        vehicle = Vehicle(x=92.0, y=road.center_y(92.0), speed=10.0)
+        obstacle = Obstacle(x=100.0, y=road.center_y(100.0), radius=0.35)
+        command = controller.control(vehicle, road, (obstacle,))
+        self.assertEqual(controller.mode, DrivingMode.BRAKE)
+        self.assertEqual(command.brake, 1.0)
 
 if __name__ == "__main__":
     unittest.main()
