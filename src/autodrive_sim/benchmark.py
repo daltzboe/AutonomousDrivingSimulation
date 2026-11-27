@@ -9,6 +9,7 @@ import statistics
 
 from autodrive_sim.controllers import (
     ObstacleAvoidanceController,
+    IntelligentDrivingController,
     SteeringObstacleAvoidanceController,
 )
 from autodrive_sim.simulator.road import Road
@@ -46,9 +47,9 @@ def run_episode(
     scenario_name: str = "clear",
 ) -> dict[str, float | int | None]:
     """Run one scenario and optionally save its telemetry as CSV."""
-    if controller_name not in {"baseline", "safety", "steering"}:
+    if controller_name not in {"baseline", "safety", "steering", "intelligent"}:
         raise ValueError(
-            "controller_name must be 'baseline', 'safety', or 'steering'"
+            "controller_name must be 'baseline', 'safety', 'steering', or 'intelligent'"
         )
 
     # The benchmark uses a 4.8 m lane so the vehicle can safely pass a
@@ -60,6 +61,8 @@ def run_episode(
         if controller_name == "safety"
         else SteeringObstacleAvoidanceController()
         if controller_name == "steering"
+        else IntelligentDrivingController()
+        if controller_name == "intelligent"
         else None
     )
     simulation = Simulation(
@@ -108,8 +111,8 @@ def main() -> None:
         help="number of identical episodes to run (1-100)",
     )
     parser.add_argument(
-        "--controller", choices=("baseline", "safety", "steering"), default="baseline",
-        help="baseline lane follower, emergency braking, or steering-based obstacle avoidance",
+        "--controller", choices=("baseline", "safety", "steering", "intelligent"), default="baseline",
+        help="baseline lane follower, emergency braking, steering avoidance, or intelligent decision control",
     )
     parser.add_argument(
         "--scenario", choices=SCENARIOS, default="clear",
@@ -170,7 +173,7 @@ def main() -> None:
         "episodes": episode_results,
         "notes": [
             "Results are from the deterministic lightweight 2D simulator.",
-            "The safety controller performs emergency braking; the steering controller plans a smooth lateral bypass when road width permits.",
+            "The safety controller performs emergency braking; the steering controller plans a smooth lateral bypass; the intelligent controller adds CRUISE, APPROACH, AVOID, and BRAKE decisions with adaptive speed.",
             "Benchmark road width is 4.8 m to provide a feasible passing corridor for the configured vehicle and obstacle sizes.",
             "A safe stop before the destination is reported as incomplete route completion.",
             "These results are not CARLA results or trained neural-network results.",
