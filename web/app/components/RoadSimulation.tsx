@@ -19,6 +19,8 @@ type Signal = { s: number; phase: "green" | "yellow" | "red" };
 const ROUTE_LENGTH = 2800;
 const LANE_WIDTH = 3.6;
 const COLORS = ["#e1a45e", "#a8b9c9", "#d86f72", "#7f9bd6", "#a5c88d", "#b5a0d6"];
+const SPEED_LIMIT_KMH = 60;
+const SPEED_LIMIT_MS = SPEED_LIMIT_KMH / 3.6;
 
 function clamp(v: number, min: number, max: number) { return Math.max(min, Math.min(max, v)); }
 
@@ -148,6 +150,21 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
         }
       }
       ctx.setLineDash([]);
+      // Roadside speed-limit boards, repeated along the route for a clear visual cue.
+      for (let board = 0; board < 5; board++) {
+        const routeS = Math.floor(current.distance / 500) * 500 + board * 500 + 120;
+        const relative = routeS - current.distance;
+        const boardY = egoY - relative * pxPerMeter;
+        if (boardY < -45 || boardY > height + 45) continue;
+        const boardX = left + roadWidth + 27;
+        ctx.fillStyle = "#f7f7f2";
+        ctx.beginPath(); ctx.arc(boardX, boardY, 17, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = "#d84d4d"; ctx.lineWidth = 4; ctx.stroke();
+        ctx.fillStyle = "#202b36"; ctx.font = "bold 10px sans-serif"; ctx.textAlign = "center";
+        ctx.fillText(String(SPEED_LIMIT_KMH), boardX, boardY + 4);
+      }
+      ctx.fillStyle = "#f1d477"; ctx.font = "bold 11px monospace"; ctx.textAlign = "right";
+      ctx.fillText("SPEED LIMIT " + SPEED_LIMIT_KMH + " km/h", width - 14, 42);
       // Direction arrows: the left two lanes travel toward the viewer; right two travel away.
       for (let y = -70 + dashOffset; y < height + 90; y += 130) {
         for (let lane = 0; lane < 4; lane++) {
@@ -244,7 +261,7 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
         const upcomingSignal = signals.find(signal => signal.s >= current.distance && signal.s - current.distance < 110);
         let brake = false;
         let desiredLane = current.laneTarget;
-        let targetSpeed = controller === "safety" ? 16 : controller === "baseline" ? 20 : 19;
+        let targetSpeed = Math.min(SPEED_LIMIT_MS, controller === "safety" ? 16 : controller === "baseline" ? 20 : 19);
 
         // Stop at the painted line. Red always means stop; yellow means stop if
         // braking safely is still possible. Green releases the car normally.
@@ -314,16 +331,11 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
           const safeFollowingSpeed = Math.sqrt(2 * 4.2 * followingStoppingDistance);
           targetSpeed = Math.min(targetSpeed, safeFollowingSpeed, Math.max(0, sameLaneTraffic.speed + (carGap - 18) * 0.12));
         }
-        // Follow traffic at a normal, speed-aware gap (roughly 1.1 seconds plus car length).
-        if (sameLaneTraffic && carGap < Math.max(14, current.speed * 1.1 + 5)) {
-          const safeFollowingSpeed = Math.max(0, sameLaneTraffic.speed - 1.2);
-          targetSpeed = Math.min(targetSpeed, safeFollowingSpeed);
-          brake = true;
-        }
         if (brake && targetSpeed > current.speed) targetSpeed = current.speed;
         current.laneTarget = desiredLane;
         current.lane += (current.laneTarget - current.lane) * Math.min(1, dt * 1.25);
-        const acceleration = targetSpeed < current.speed ? 5.2 : 2.8;
+        // Faster, responsive launch after green while preserving smooth braking.
+        const acceleration = targetSpeed < current.speed ? 7.2 : 5.4;
         current.speed += clamp(targetSpeed - current.speed, -acceleration * dt, acceleration * dt);
         current.distance += current.speed * dt;
         current.traffic.forEach(car => {
@@ -331,26 +343,56 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
           const nextSignal = signals
             .filter(signal => direction > 0 ? signal.s > car.s : signal.s < car.s)
             .sort((a, b) => direction > 0 ? a.s - b.s : b.s - a.s)[0];
-          const nominalSpeed = car.lane < 2 ? 15 + (car.id % 5) : 10 + (car.id % 7);
+          const nominalSpeed = Math.min(SPEED_LIMIT_MS, car.lane < 2 ? 15 + (car.id % 5) : 10 + (car.id % 7));
           let trafficTarget = nominalSpeed;
+          // Traffic reacts to stationary hazards in its lane: brake to a safe
+          // standstill before the object instead of clipping through it.
+          const trafficHazard = hazards
+            .filter(h => Math.round(h.lane) === Math.round(car.lane) && (direction > 0 ? h.s > car.s : h.s < car.s))
+            .sort((a, b) => direction > 0 ? a.s - b.s : b.s - a.s)[0];
+          if (trafficHazard) {
+            const hazardGap = Math.abs(trafficHazard.s - car.s) - 10;
+            if (hazardGap < Math.max(45, car.speed * 3.2)) {
+              trafficTarget = Math.min(trafficTarget, Math.sqrt(Math.max(0, 2 * 5.2 * Math.max(0, hazardGap))));
+              if (hazardGap <= 1.5) trafficTarget = 0;
+            }
+          }
           if (nextSignal) {
             const phase = (current.elapsed + nextSignal.s * 0.013) % 24;
             const redOrYellow = phase >= 10;
             const distanceToLine = Math.abs(nextSignal.s - car.s) - 2.8;
             if (redOrYellow && distanceToLine > 0) {
-              trafficTarget = Math.min(trafficTarget, Math.sqrt(Math.max(0, 2 * 4.8 * Math.max(0, distanceToLine - 1))));
+              trafficTarget = Math.min(trafficTarget, Math.sqrt(Math.max(0, 2 * 5.2 * Math.max(0, distanceToLine - 1))));
             }
             if (redOrYellow && distanceToLine <= 1.2) trafficTarget = 0;
           }
-          car.speed += clamp(trafficTarget - car.speed, -6 * dt, 2.2 * dt);
+          // Queue naturally: never drive into the vehicle ahead or allow cars
+          // to occupy the same longitudinal space in a lane.
+          const sameLaneAhead = current.traffic
+            .filter(other => other.id !== car.id && Math.round(other.lane) === Math.round(car.lane) &&
+              (direction > 0 ? other.s > car.s : other.s < car.s))
+            .sort((a, b) => direction > 0 ? a.s - b.s : b.s - a.s)[0];
+          if (sameLaneAhead) {
+            const gap = Math.abs(sameLaneAhead.s - car.s) - 22;
+            const followSpeed = Math.sqrt(Math.max(0, 2 * 4.5 * Math.max(0, gap)));
+            trafficTarget = Math.min(trafficTarget, followSpeed, sameLaneAhead.speed + Math.max(0, gap - 10) * 0.08);
+          }
+          car.speed += clamp(trafficTarget - car.speed, -8 * dt, 4.5 * dt);
           car.s += direction * car.speed * dt;
         });
         current.traffic = current.traffic.filter(car => car.s > current.distance - 130 && car.s < current.distance + 260);
-        if (current.distance >= nextTrafficSpawnDistance && current.traffic.length < 9) {
+        if (current.distance >= nextTrafficSpawnDistance && current.traffic.length < 18) {
+          // Denser, staggered traffic makes the lane-selection/overtake behavior
+          // visible without placing a new car directly on top of existing traffic.
           const id = spawnId++;
           const lane = id % 4;
-          current.traffic.push({ id, lane, s: current.distance + 105 + (id % 4) * 24, speed: lane < 2 ? 15 + (id % 5) : 10 + (id % 7), color: COLORS[id % COLORS.length] });
-          nextTrafficSpawnDistance = current.distance + 115 + (id % 3) * 32;
+          const spawnS = current.distance + 145 + (id % 5) * 34;
+          const spawnLaneClear = current.traffic.every(other =>
+            Math.round(other.lane) !== lane || Math.abs(other.s - spawnS) > 55);
+          if (spawnLaneClear) {
+            current.traffic.push({ id, lane, s: spawnS, speed: Math.min(SPEED_LIMIT_MS, lane < 2 ? 15 + (id % 5) : 10 + (id % 7)), color: COLORS[id % COLORS.length] });
+          }
+          nextTrafficSpawnDistance = current.distance + 55 + (id % 3) * 24;
         }
         for (const hazard of hazards) {
           if (Math.abs(hazard.s - current.distance) < 3.2 && Math.abs(current.lane - hazard.lane) < 0.42) {
