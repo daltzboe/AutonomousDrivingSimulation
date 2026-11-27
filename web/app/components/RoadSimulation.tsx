@@ -307,22 +307,27 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
         const stoppedVehicleAhead = sameLaneTraffic !== undefined &&
           sameLaneTraffic.speed < 1.8 && carGap < 75;
         const shouldQueueInLane = waitingBehindRedLight || stoppedVehicleAhead;
+        // Complete an initiated lane change before evaluating another one.
+        const laneChangeInProgress = Math.abs(current.lane - current.laneTarget) > 0.12;
 
-        // Only make evasive lane changes for actual hazards or moving traffic.
-        // When the vehicle ahead is queued at a signal, keep the lane and brake
-        // to a stop; resume following once it moves on green.
-        if ((needsObstacleAvoidance || needsTrafficAvoidance) && !shouldQueueInLane) {
+        // Avoid weaving when adjacent lanes offer nearly identical progress.
+        // Overtake only when a safe lane has a clearly larger front gap.
+        if ((needsObstacleAvoidance || needsTrafficAvoidance) && !shouldQueueInLane && !laneChangeInProgress) {
           const requiredGap = needsObstacleAvoidance ? Math.max(32, current.speed * 1.8) : Math.max(24, current.speed * 1.35);
           const candidates = [2, 3]
             .filter(lane => lane !== egoLane)
-            .sort((a, b) => {
-              const aFront = current.traffic.filter(c => c.lane === a && c.s >= current.distance).sort((x, y) => x.s - y.s)[0];
-              const bFront = current.traffic.filter(c => c.lane === b && c.s >= current.distance).sort((x, y) => x.s - y.s)[0];
-              return (bFront ? bFront.s - current.distance : 10000) - (aFront ? aFront.s - current.distance : 10000);
-            });
-          const safeLane = candidates.find(lane => laneIsSafe(lane, requiredGap));
-          if (safeLane !== undefined) {
-            desiredLane = safeLane;
+            .map(lane => {
+              const front = current.traffic
+                .filter(c => c.lane === lane && c.s >= current.distance)
+                .sort((a, b) => a.s - b.s)[0];
+              return { lane, frontGap: front ? front.s - current.distance : Infinity };
+            })
+            .sort((a, b) => b.frontGap - a.frontGap);
+          const bestLane = candidates.find(candidate =>
+            laneIsSafe(candidate.lane, requiredGap) &&
+            (needsObstacleAvoidance || candidate.frontGap > carGap + 24));
+          if (bestLane !== undefined) {
+            desiredLane = bestLane.lane;
           } else if (needsObstacleAvoidance) {
             brake = true;
             const usableStoppingDistance = Math.max(0, obstacleGap - 9);
