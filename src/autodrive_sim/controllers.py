@@ -320,10 +320,22 @@ class IntelligentDrivingController:
             self.mode = DrivingMode.BRAKE
             return base
 
-        lane_following_steering = self.steering_controller.lane_follower.control(
-            vehicle, road
-        ).steering
-        if abs(base.steering - lane_following_steering) > 0.025:
+        # Classify avoidance from the planner's selected path, not only the
+        # instantaneous steering delta. During the early smooth transition,
+        # the planned lateral offset can be meaningful before steering differs
+        # substantially from normal lane-following (especially on curved roads).
+        preview_x = vehicle.x + self.steering_controller.lane_follower.lookahead_m
+        avoidance_offset = self.steering_controller._choose_offset(
+            nearest, obstacle_list, road, vehicle.y
+        )
+        planned_offset = (
+            0.0
+            if avoidance_offset is None
+            else self.steering_controller._path_offset(
+                preview_x, nearest.x, avoidance_offset
+            )
+        )
+        if abs(planned_offset) > 1e-6:
             self.mode = DrivingMode.AVOID
         else:
             self.mode = DrivingMode.APPROACH
