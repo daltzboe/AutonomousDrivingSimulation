@@ -297,11 +297,21 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
         const obstacleManeuverDistance = Math.max(72, current.speed * 3.8);
         const needsObstacleAvoidance = obstacleGap < obstacleManeuverDistance;
         const needsTrafficAvoidance = carGap < Math.max(30, current.speed * 1.8);
+        const signalIsRed = upcomingSignal !== undefined &&
+          ((current.elapsed + upcomingSignal.s * 0.013) % 24) >= 14;
+        // A vehicle queued/stopped for a red light is not an overtaking target.
+        // Hold the current lane and wait in the queue instead of repeatedly
+        // trying to merge around it as traffic gaps fluctuate.
+        const waitingBehindRedLight = signalIsRed &&
+          upcomingSignal!.s - current.distance < 95;
+        const stoppedVehicleAhead = sameLaneTraffic !== undefined &&
+          sameLaneTraffic.speed < 1.8 && carGap < 75;
+        const shouldQueueInLane = waitingBehindRedLight || stoppedVehicleAhead;
 
-        // Attempt a safe lane change early. If no lane is safe, reduce speed
-        // using stopping-distance physics and wait before the obstacle while
-        // rechecking the lanes every frame (never accelerate into it).
-        if (needsObstacleAvoidance || needsTrafficAvoidance) {
+        // Only make evasive lane changes for actual hazards or moving traffic.
+        // When the vehicle ahead is queued at a signal, keep the lane and brake
+        // to a stop; resume following once it moves on green.
+        if ((needsObstacleAvoidance || needsTrafficAvoidance) && !shouldQueueInLane) {
           const requiredGap = needsObstacleAvoidance ? Math.max(32, current.speed * 1.8) : Math.max(24, current.speed * 1.35);
           const candidates = [2, 3]
             .filter(lane => lane !== egoLane)
