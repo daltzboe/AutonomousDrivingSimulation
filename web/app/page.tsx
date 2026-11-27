@@ -21,7 +21,8 @@ const scenarios: Record<Scenario, { label: string; obstacles: { x: number; y: nu
   clear: { label: "Clear road", obstacles: [] },
   center: { label: "Center obstacle", obstacles: [{ x: 50, y: 35 }] },
   edge: { label: "Lane-edge obstacle", obstacles: [{ x: 50, y: 22 }] },
-  outside: { label: "Outside-lane obstacle", obstacles: [{ x: 50, y: 8 }] },\n  multiple: { label: "Multiple obstacles", obstacles: [{ x: 43, y: 35 }, { x: 66, y: 24 }] },
+  outside: { label: "Outside-lane obstacle", obstacles: [{ x: 50, y: 8 }] },
+  multiple: { label: "Multiple obstacles", obstacles: [{ x: 43, y: 35 }, { x: 66, y: 24 }] },
 };
 
 export default function Dashboard() {
