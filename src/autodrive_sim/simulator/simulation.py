@@ -37,7 +37,7 @@ class Simulation:
 
     road: Road = field(default_factory=Road)
     vehicle: Vehicle = field(default_factory=Vehicle)
-    controller: LaneFollowingController | ObstacleAvoidanceController | SteeringObstacleAvoidanceController = field(
+    controller: LaneFollowingController | ObstacleAvoidanceController | SteeringObstacleAvoidanceController | IntelligentDrivingController = field(
         default_factory=LaneFollowingController
     )
     obstacles: tuple[Obstacle, ...] = field(default_factory=tuple)
