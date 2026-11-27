@@ -36,6 +36,7 @@ export default function Dashboard() {
   const [benchmark, setBenchmark] = useState<BenchmarkReport | null>(null);
   const [comparison, setComparison] = useState<ComparisonReport | null>(null);
   const [comparisonLoading, setComparisonLoading] = useState(false);
+  const [apiStatus, setApiStatus] = useState<"checking" | "online" | "offline">("checking");
   const [benchmarkLoading, setBenchmarkLoading] = useState(false);
   const [episodeCount, setEpisodeCount] = useState(10);
   const [benchmarkError, setBenchmarkError] = useState("");
@@ -53,6 +54,15 @@ export default function Dashboard() {
 
   return () => window.clearInterval(timer);
   }, [running]);
+
+  useEffect(() => {
+    let active = true;
+    fetch(`${simulatorApi}/api/health`)
+      .then((response) => { if (!response.ok) throw new Error("API unavailable"); return response.json(); })
+      .then((health) => { if (active && health.status === "ok") setApiStatus("online"); })
+      .catch(() => { if (active) setApiStatus("offline"); });
+    return () => { active = false; };
+  }, []);
 
   const obstacleCount = scenarios[scenario].obstacles.length;
   const laneOffset = controller === "steering" && scenario !== "clear" && progress > 35 && progress < 72 ? 7 : 0;
@@ -115,7 +125,7 @@ export default function Dashboard() {
       </aside>
 
       <section className="main">
-        <header className="topbar"><div className="crumb">Projects <span>/</span> <b>Autonomous Driving Simulation</b></div><div className="top-actions"><span className="env-pill">● SIMULATION ENVIRONMENT</span><div className="top-avatar">DO</div></div></header>
+        <header className="topbar"><div className="crumb">Projects <span>/</span> <b>Autonomous Driving Simulation</b></div><div className="top-actions"><span className={`env-pill api-status ${apiStatus}`} aria-live="polite">● {apiStatus === "checking" ? "CHECKING PYTHON API" : apiStatus === "online" ? "PYTHON API CONNECTED" : "PYTHON API OFFLINE · START BACKEND"}</span><div className="top-avatar">DO</div></div></header>
         <div className="content">
           <div className="page-heading"><div><div className="eyebrow">RESEARCH OVERVIEW <span>•</span> EXPERIMENT 001</div><h1>Autonomous Driving <em>Research</em></h1><p>Team research project · Dalton Opudo, Dexter & William. Evaluate controllers with reproducible Python experiments.</p></div><button className="export-btn" onClick={() => window.print()}>↥ <span>Export view</span></button></div>
 
@@ -140,7 +150,7 @@ export default function Dashboard() {
                 </div>
                 <div className="road-overlay"><span>● EGO VEHICLE</span><span>○ STATIC OBSTACLE</span></div>
               </div>
-              <div className="sim-controls"><button className="primary-btn" disabled={benchmarkLoading} onClick={() => void runBenchmark()}>{benchmarkLoading ? "Running Python benchmark…" : "▶  Run Python benchmark"}</button><button className="secondary-btn" onClick={() => running ? setRunning(false) : run()}>{running ? "Ⅱ  Pause preview" : "▷  Play preview"}</button><button className="secondary-btn" onClick={reset}>↺ Reset</button><div className="control-divider" /><label>CONTROLLER<select value={controller} onChange={(e) => {setController(e.target.value as Controller); setBenchmark(null); reset();}}><option value="baseline">Baseline · lane following</option><option value="safety">Safety · emergency brake</option><option value="steering">Steering · obstacle avoidance</option></select></label><label>EPISODES<select value={episodeCount} onChange={(e) => {setEpisodeCount(Number(e.target.value)); setBenchmark(null);}}><option value={1}>1 · Quick check</option><option value={10}>10 · Standard</option><option value={25}>25 · Extended</option><option value={50}>50 · Deep run</option></select></label><label>SCENARIO<select value={scenario} onChange={(e) => {setScenario(e.target.value as Scenario); setBenchmark(null); reset();}}><option value="clear">Clear road</option><option value="center">Center obstacle</option><option value="edge">Lane-edge obstacle</option><option value="outside">Outside-lane obstacle</option><option value="multiple">Multiple obstacles</option></select></label></div>
+              <div className="sim-controls"><button className="primary-btn" disabled={benchmarkLoading} onClick={() => void runBenchmark()}>{benchmarkLoading ? "Running Python benchmark…" : "▶  Run Python benchmark"}</button><button className="secondary-btn" onClick={() => running ? setRunning(false) : run()}>{running ? "Ⅱ  Pause preview" : "▷  Play preview"}</button><button className="secondary-btn" onClick={reset}>↺ Reset</button><div className="control-divider" /><label>CONTROLLER<select value={controller} onChange={(e) => {setController(e.target.value as Controller); setBenchmark(null); reset();}}><option value="baseline">Baseline · lane following</option><option value="safety">Safety · emergency brake</option><option value="steering">Steering · obstacle avoidance</option></select></label><label>EPISODES<select value={episodeCount} onChange={(e) => {setEpisodeCount(Number(e.target.value)); setBenchmark(null);}}><option value={1}>1 · Quick check</option><option value={10}>10 · Standard</option><option value={25}>25 · Extended</option><option value={50}>50 · Deep run</option></select></label><label>SCENARIO<select value={scenario} onChange={(e) => {setScenario(e.target.value as Scenario); setBenchmark(null); setComparison(null); reset();}}><option value="clear">Clear road</option><option value="center">Center obstacle</option><option value="edge">Lane-edge obstacle</option><option value="outside">Outside-lane obstacle</option><option value="multiple">Multiple obstacles</option></select></label></div>
             </div>
             <div className="right-stack">
               <div className="panel telemetry-panel"><div className="panel-head"><div><strong>Preview readout</strong><small>ANIMATION VALUES · NOT PYTHON TELEMETRY</small></div><span className="telemetry-icon">⌁</span></div><Telemetry label="Longitudinal speed" value={speed.toFixed(1)} unit="m/s" pct={speed / 70 * 100}/><Telemetry label="Lateral offset" value={(laneOffset * 0.1).toFixed(2)} unit="m" pct={laneOffset * 1.2}/><Telemetry label="Route progress" value={completion.toString()} unit="%" pct={completion}/><div className="telemetry-foot"><span>SIM TIME</span><b>{elapsed}s</b><span>FIXED STEP</span><b>0.10s</b></div></div>
