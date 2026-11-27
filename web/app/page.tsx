@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 type Controller = "baseline" | "safety" | "steering";
 type Scenario = "clear" | "center" | "edge" | "outside" | "multiple";
+type ComparisonReport = { scenario: Scenario; episode_count_per_controller: number; reports: BenchmarkReport[]; interpretation: string };
 type BenchmarkReport = {
   controller: Controller;
   scenario: Scenario;
@@ -33,6 +34,8 @@ export default function Dashboard() {
   const [speed, setSpeed] = useState(42);
   const [ticks, setTicks] = useState(0);
   const [benchmark, setBenchmark] = useState<BenchmarkReport | null>(null);
+  const [comparison, setComparison] = useState<ComparisonReport | null>(null);
+  const [comparisonLoading, setComparisonLoading] = useState(false);
   const [benchmarkLoading, setBenchmarkLoading] = useState(false);
   const [episodeCount, setEpisodeCount] = useState(10);
   const [benchmarkError, setBenchmarkError] = useState("");
@@ -47,7 +50,23 @@ export default function Dashboard() {
       setTicks((t) => t + 1);
       setSpeed((s) => Math.max(28, Math.min(62, s + (Math.random() - 0.48) * 2)));
     }, 100);
-    return () => window.clearInterval(timer);
+    async function runComparison() {
+    setComparisonLoading(true);
+    setBenchmarkError("");
+    try {
+      const response = await fetch(`${simulatorApi}/api/compare`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scenario, episodes: Math.min(episodeCount, 25) }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || `Comparison failed (${response.status}).`);
+      setComparison(payload.report as ComparisonReport);
+    } catch (error) {
+      setBenchmarkError(error instanceof Error ? error.message : "Could not connect to the Python simulator.");
+    } finally { setComparisonLoading(false); }
+  }
+
+  return () => window.clearInterval(timer);
   }, [running]);
 
   const obstacleCount = scenarios[scenario].obstacles.length;
@@ -132,6 +151,9 @@ export default function Dashboard() {
             <div className="panel insight-panel"><div className="panel-head"><div><strong>Scenario configuration</strong><small>DETERMINISTIC TEST SETUP</small></div></div><div className="scenario-row"><div className="scenario-icon">⌖</div><div><b>{scenarios[scenario].label}</b><small>{obstacleCount} obstacle{obstacleCount === 1 ? "" : "s"} · Single-lane road</small></div><span className="scenario-state">SELECTED</span></div><div className="scenario-details"><span>ROAD WIDTH <b>4.8 m</b></span><span>ROUTE LENGTH <b>1,200 m</b></span><span>TIME STEP <b>0.10 s</b></span></div></div>
             <div className="panel insight-panel"><div className="panel-head"><div><strong>Research metrics</strong><small>{benchmark ? `PYTHON · ${benchmark.episode_count} EPISODE` : "REAL RESULTS APPEAR AFTER A PYTHON RUN"}</small></div></div>{benchmarkError && <p role="alert" className="api-error">{benchmarkError}</p>}<div className="metric-list"><div><span>Mean lane deviation</span><b>{benchmark?.aggregate.mean_lane_deviation_m == null ? "—" : benchmark.aggregate.mean_lane_deviation_m.toFixed(3)}<small> m</small></b></div><div><span>Mean collision events</span><b>{benchmark ? benchmark.aggregate.mean_collision_events.toFixed(2) : "—"}</b></div><div><span>Route completion</span><b>{benchmark ? benchmark.aggregate.mean_route_completion_pct.toFixed(1) : "—"}<small>%</small></b></div><div><span>Safe-stop rate</span><b>{benchmark ? (benchmark.aggregate.safe_stop_rate * 100).toFixed(0) : "—"}<small>%</small></b></div><div><span>Steering MAE</span><b>Not measured</b></div></div>{benchmark && <p className="benchmark-note">Completed {benchmark.episodes.filter((episode) => episode.completed).length} of {benchmark.episode_count} episodes. Simulator: lightweight 2D.</p>}</div>
           </div>
+
+          <div className="section-row benchmark-heading"><div><h2>Controller comparison</h2><p>Matched scenario · Python benchmark output</p></div><button className="secondary-btn" disabled={comparisonLoading} onClick={() => void runComparison()}>{comparisonLoading ? "Comparing…" : "Compare all 3 controllers"}</button></div>
+          {comparison && <div className="panel comparison-panel"><div className="panel-head"><div><strong>Matched controller benchmark</strong><small>{comparison.scenario.toUpperCase()} · {comparison.episode_count_per_controller} EPISODES EACH</small></div><span className="dataset-label">PYTHON OUTPUT</span></div><div className="comparison-table"><div className="comparison-header"><span>CONTROLLER</span><span>COLLISIONS ↓</span><span>COMPLETION ↑</span><span>LANE ERROR ↓</span></div>{comparison.reports.map((item) => <div className="comparison-row" key={item.controller}><b>{item.controller === "baseline" ? "Pure pursuit" : item.controller === "safety" ? "Emergency brake" : "Steering avoidance"}</b><span>{item.aggregate.mean_collision_events.toFixed(2)}</span><span className="completion-cell"><div className="comparison-meter"><i style={{width: `${Math.max(0,Math.min(100,item.aggregate.mean_route_completion_pct))}%`}} /></div><strong>{item.aggregate.mean_route_completion_pct.toFixed(1)}%</strong></span><span>{item.aggregate.mean_lane_deviation_m == null ? "N/A" : `${item.aggregate.mean_lane_deviation_m.toFixed(3)} m`}</span></div>)}</div><p className="comparison-note">{comparison.interpretation} Deterministic repeats are consistency checks, not independent randomized trials.</p></div>}
           <footer><span>Autonomy Lab <b>·</b> UTSA Computer Science Research Project</span><span>SIMULATION BUILD 0.1.0 <b>·</b> NOT FOR REAL-WORLD VEHICLE CONTROL</span></footer>
         </div>
       </section>
