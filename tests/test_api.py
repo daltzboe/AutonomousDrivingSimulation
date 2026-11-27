@@ -35,6 +35,9 @@ class BenchmarkAPITests(unittest.TestCase):
         self.assertAlmostEqual(
             report["aggregate"]["mean_route_completion_pct"], 100.0
         )
+        self.assertEqual(report["aggregate"]["std_route_completion_pct"], 0.0)
+        single = run_benchmark("baseline", "clear", 1)
+        self.assertIsNone(single["aggregate"]["std_route_completion_pct"])
 
 
 if __name__ == "__main__":
