@@ -2,7 +2,7 @@
 
 import unittest
 
-from autodrive_sim.api import run_benchmark
+from autodrive_sim.api import run_benchmark, run_controller_comparison
 
 
 class BenchmarkAPITests(unittest.TestCase):
@@ -18,6 +18,14 @@ class BenchmarkAPITests(unittest.TestCase):
         self.assertIn("mean_route_completion_pct", report["aggregate"])
         self.assertEqual(len(report["episodes"]), 1)
         self.assertEqual(report["episodes"][0]["collision_events"], 0)
+
+    def test_comparison_runs_all_controllers_on_same_scenario(self):
+        report = run_controller_comparison("outside", 1)
+
+        self.assertEqual(report["scenario"], "outside")
+        self.assertEqual(report["episode_count_per_controller"], 1)
+        self.assertEqual([item["controller"] for item in report["reports"]], ["baseline", "safety", "steering"])
+        self.assertTrue(all(item["episode_count"] == 1 for item in report["reports"]))
 
     def test_api_aggregates_repeatable_episodes(self):
         report = run_benchmark("baseline", "clear", 2)
