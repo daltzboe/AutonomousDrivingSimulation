@@ -15,3 +15,25 @@
 @media(max-width:560px){.comparison-export{align-items:flex-start;flex-direction:column;gap:6px}}
 
 .completion-cell small{font:8px 'DM Mono';color:#8b9eaf;white-space:nowrap}
+
+
+/* Navigation, keyboard focus, and action feedback */
+html { scroll-behavior: smooth; }
+#overview, #simulation, #benchmarks, #sensor-data, #experiments { scroll-margin-top: 82px; }
+.nav-item { transition: background .16s ease, color .16s ease, border-color .16s ease; }
+.nav-item:hover { color: #e5f1ff; background: #142335; }
+.nav-item:focus-visible, button:focus-visible, select:focus-visible {
+  outline: 2px solid #79baff;
+  outline-offset: 3px;
+}
+button:disabled { cursor: wait; opacity: .62; filter: saturate(.65); }
+.secondary-btn:hover:not(:disabled), .export-btn:hover { border-color: #42627f; color: #e4effa; background: #1a2a3b; }
+.primary-btn:focus-visible { outline-color: #a2d4ff; }
+@media print {
+  body, .shell, .main, .content { background: #fff !important; color: #111 !important; }
+  .sidebar, .topbar, .export-btn, .sim-controls, .section-row > button, .comparison-export { display: none !important; }
+  .panel { border: 1px solid #bbb !important; background: #fff !important; break-inside: avoid; }
+  .simulation-grid, .bottom-grid { display: block !important; }
+  .right-stack { display: grid !important; grid-template-columns: 1fr 1fr !important; }
+  footer { color: #444 !important; }
+}
