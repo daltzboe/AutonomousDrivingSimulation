@@ -10,3 +10,6 @@
 @media(max-width:650px){.comparison-header,.comparison-row{grid-template-columns:1.2fr .7fr 1.2fr;gap:8px}.comparison-header span:last-child,.comparison-row>span:last-child{display:none}.comparison-row>b{font-size:9px}.comparison-row>span{font-size:9px}.completion-cell{gap:5px}.section-row>button.secondary-btn{font-size:8px;padding:7px}}
 
 .api-status{transition:color .2s ease}.api-status.online{color:#80d8b0}.api-status.offline{color:#f0a18b}.api-status.checking{color:#c4b27e}
+
+.comparison-export{display:flex;align-items:center;gap:10px;padding:12px 17px 4px}.comparison-export>span{font-size:9px;color:#8093a6}.comparison-export .secondary-btn{font-size:9px;padding:7px 10px}
+@media(max-width:560px){.comparison-export{align-items:flex-start;flex-direction:column;gap:6px}}
