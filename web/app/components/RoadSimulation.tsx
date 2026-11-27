@@ -45,7 +45,7 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
     let last = 0;
     let lastTelemetry = 0;
     let spawnId = 0;
-    let nextTrafficSpawnDistance = 245;
+    let nextTrafficSpawnDistance = 190;
     let hazards: Hazard[] = [];
     let signals: Signal[] = [];
     const s = stateRef.current;
@@ -191,7 +191,7 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
           ctx.fillStyle = i === active ? color : "#4b555d";
           ctx.beginPath(); ctx.arc(left + lanePx * 2, y - 20 + i * 10, 4, 0, Math.PI * 2); ctx.fill();
         });
-        ctx.strokeStyle = "#f1d477"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(left + lanePx * 2, y + 12); ctx.lineTo(left + roadWidth, y + 12); ctx.stroke();
+        ctx.strokeStyle = "#f1d477"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(left + lanePx * 2, y - 15); ctx.lineTo(left + roadWidth, y - 15); ctx.stroke();
         if (relative > 0 && relative < 34 && signal.phase !== "green") {
           ctx.fillStyle = "#f4d16f"; ctx.font = "600 10px sans-serif"; ctx.textAlign = "center"; ctx.fillText("STOP LINE", left + lanePx * 3, y + 27);
         }
@@ -234,36 +234,72 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
       const current = stateRef.current;
       if (runningRef.current && !current.crashed && current.distance < ROUTE_LENGTH) {
         current.elapsed += dt;
-        const egoLane = Math.round(current.laneTarget);
-        const aheadHazard = hazards.find(h => h.lane === egoLane && h.s >= current.distance && h.s - current.distance < 115);
-        const sameLaneTraffic = current.traffic.find(c => c.lane === egoLane && c.s > current.distance && c.s - current.distance < 48);
-        const upcomingSignal = signals.find(signal => signal.s >= current.distance && signal.s - current.distance < 45);
+        const egoLane = Math.round(current.lane);
+        const laneCandidates = [2, 3].filter(lane => lane !== egoLane);
+        const aheadHazard = hazards.find(h => h.lane === egoLane && h.s >= current.distance && h.s - current.distance < 150);
+        const sameLaneTraffic = current.traffic
+          .filter(c => c.lane === egoLane && c.s > current.distance)
+          .sort((a, b) => a.s - b.s)[0];
+        const upcomingSignal = signals.find(signal => signal.s >= current.distance && signal.s - current.distance < 95);
         let brake = false;
         let desiredLane = current.laneTarget;
+        let targetSpeed = controller === "safety" ? 16 : controller === "baseline" ? 20 : 19;
+
+        // The line is drawn just before the signal. Stop the front of the car at that line,
+        // not several car-lengths early, then accelerate normally after green.
         if (upcomingSignal) {
           const cycle = (current.elapsed + upcomingSignal.s * 0.013) % 24;
           const phase = cycle < 10 ? "green" : cycle < 14 ? "yellow" : "red";
-          const distanceToSignal = upcomingSignal.s - current.distance;
-          if (phase === "red" || (phase === "yellow" && current.speed * current.speed / 8 + 7 > distanceToSignal)) brake = true;
-        }
-        if (aheadHazard) {
-          const gap = aheadHazard.s - current.distance;
-          if (controller === "steering") {
-            const otherLane = egoLane === 2 ? 3 : 2;
-            const laneBlocked = current.traffic.some(c => c.lane === otherLane && Math.abs(c.s - current.distance) < 70) || hazards.some(h => h.lane === otherLane && Math.abs(h.s - current.distance) < 55);
-            if (!laneBlocked && gap < 92) desiredLane = otherLane;
-            else if (gap < current.speed * current.speed / 10 + 15) brake = true;
-          } else if (gap < current.speed * current.speed / 10 + (controller === "safety" ? 22 : 8)) {
-            brake = true;
+          const stopDistance = upcomingSignal.s - current.distance - 2.8;
+          const shouldStop = phase === "red" || (phase === "yellow" && current.speed * current.speed / 8 + 2 > stopDistance);
+          if (shouldStop && stopDistance > 0) {
+            targetSpeed = Math.min(targetSpeed, Math.sqrt(Math.max(0, 2 * 4.2 * stopDistance)));
+            if (stopDistance < 2.5) targetSpeed = 0;
           }
         }
-        if (sameLaneTraffic && sameLaneTraffic.s - current.distance < 24) {
-          if (controller === "steering") {
-            const otherLane = egoLane === 2 ? 3 : 2;
-            const blocked = current.traffic.some(c => c.lane === otherLane && Math.abs(c.s - current.distance) < 55) || hazards.some(h => h.lane === otherLane && Math.abs(h.s - current.distance) < 45);
-            if (!blocked) desiredLane = otherLane; else brake = true;
-          } else brake = true;
+
+        // Find a lane in our same-direction pair with room ahead AND behind.
+        // Opposing lanes 0/1 are never candidates, preventing unsafe cross-centerline moves.
+        const laneIsSafe = (lane: number, neededGap: number) => {
+          if (lane < 2 || lane > 3) return false;
+          const vehicles = current.traffic.filter(c => c.lane === lane);
+          const front = vehicles.filter(c => c.s >= current.distance).sort((a, b) => a.s - b.s)[0];
+          const rear = vehicles.filter(c => c.s < current.distance).sort((a, b) => b.s - a.s)[0];
+          const frontGap = front ? front.s - current.distance : Infinity;
+          const rearGap = rear ? current.distance - rear.s : Infinity;
+          // A rear vehicle approaching quickly needs a larger merge gap.
+          const rearClosingSpeed = rear ? Math.max(0, rear.speed - current.speed) : 0;
+          const safeRearGap = Math.max(12, 10 + rearClosingSpeed * 1.15);
+          return !hazards.some(h => h.lane === lane && h.s > current.distance - 8 && h.s - current.distance < neededGap + 20)
+            && frontGap > neededGap
+            && rearGap > safeRearGap;
+        };
+
+        const obstacleGap = aheadHazard ? aheadHazard.s - current.distance : Infinity;
+        const carGap = sameLaneTraffic ? sameLaneTraffic.s - current.distance : Infinity;
+        const obstacleNeedsMove = obstacleGap < Math.max(28, current.speed * 1.45);
+        const carNeedsMove = carGap < Math.max(16, current.speed * 0.95);
+
+        if (controller === "steering" && (obstacleNeedsMove || carNeedsMove)) {
+          const candidate = laneCandidates.find(lane => laneIsSafe(lane, obstacleNeedsMove ? 28 : 18));
+          if (candidate !== undefined) {
+            desiredLane = candidate;
+          } else {
+            brake = true;
+            targetSpeed = Math.min(targetSpeed, sameLaneTraffic?.speed ?? 0);
+          }
+        } else if (obstacleGap < Math.max(18, current.speed * current.speed / 9 + 5)) {
+          brake = true;
+          targetSpeed = 0;
         }
+
+        // Follow traffic at a normal, speed-aware gap (roughly 1.1 seconds plus car length).
+        if (sameLaneTraffic && carGap < Math.max(14, current.speed * 1.1 + 5)) {
+          const safeFollowingSpeed = Math.max(0, sameLaneTraffic.speed - 1.2);
+          targetSpeed = Math.min(targetSpeed, safeFollowingSpeed);
+          brake = true;
+        }
+        if (brake && targetSpeed > current.speed) targetSpeed = current.speed;
         current.laneTarget = desiredLane;
         current.lane += (current.laneTarget - current.lane) * Math.min(1, dt * 1.25);
         const targetSpeed = brake ? 0 : (controller === "safety" ? 16 : controller === "baseline" ? 20 : 19);
@@ -276,7 +312,7 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
           const id = spawnId++;
           const lane = id % 4;
           current.traffic.push({ id, lane, s: current.distance + 105 + (id % 4) * 24, speed: lane < 2 ? 15 + (id % 5) : 10 + (id % 7), color: COLORS[id % COLORS.length] });
-          nextTrafficSpawnDistance = current.distance + 145 + (id % 3) * 42;
+          nextTrafficSpawnDistance = current.distance + 115 + (id % 3) * 32;
         }
         for (const hazard of hazards) {
           if (Math.abs(hazard.s - current.distance) < 3.2 && Math.abs(current.lane - hazard.lane) < 0.42) {
