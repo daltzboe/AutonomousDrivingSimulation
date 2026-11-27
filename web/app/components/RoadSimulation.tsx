@@ -12,7 +12,7 @@ type Props = {
   onTelemetry: (value: { speed: number; progress: number; elapsed: number; lane: number; signal: string; collisions: number }) => void;
 };
 
-type TrafficCar = { id: number; lane: number; laneTarget?: number; s: number; speed: number; color: string };
+type TrafficCar = { id: number; lane: number; laneTarget?: number; laneChangeCooldown?: number; s: number; speed: number; color: string };
 type Hazard = { s: number; lane: number; kind: "barrier" | "cone" };
 type Signal = { s: number; phase: "green" | "yellow" | "red" };
 
@@ -98,27 +98,70 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
     const observer = new ResizeObserver(resize);
     observer.observe(canvas);
 
+    // Top-down passenger-car silhouette: tapered hood, cabin glass, mirrors,
+    // four tires, headlights and tail lamps make vehicle orientation readable.
     const drawCar = (x: number, y: number, width: number, height: number, color: string, ego = false, opposite = false) => {
       ctx.save();
       ctx.translate(x, y);
       if (opposite) ctx.rotate(Math.PI);
-      ctx.shadowColor = ego ? "#55baff" : "#00000055";
-      ctx.shadowBlur = ego ? 16 : 5;
+      const w = width;
+      const h = height;
+      ctx.shadowColor = ego ? "#55baff" : "#00000066";
+      ctx.shadowBlur = ego ? 15 : 4;
+      // Tires sit outside the body.
+      ctx.fillStyle = "#101820";
+      for (const side of [-1, 1]) {
+        ctx.beginPath();
+        ctx.roundRect(side * w * 0.43 - w * 0.075, -h * 0.31, w * 0.15, h * 0.24, 2);
+        ctx.roundRect(side * w * 0.43 - w * 0.075, h * 0.12, w * 0.15, h * 0.24, 2);
+        ctx.fill();
+      }
+      // Sculpted body with a narrower hood and rounded rear.
       ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.roundRect(-width / 2, -height / 2, width, height, 7);
+      ctx.moveTo(-w * 0.31, h * 0.43);
+      ctx.quadraticCurveTo(-w * 0.43, h * 0.39, -w * 0.43, h * 0.23);
+      ctx.lineTo(-w * 0.39, -h * 0.20);
+      ctx.quadraticCurveTo(-w * 0.37, -h * 0.38, -w * 0.23, -h * 0.46);
+      ctx.quadraticCurveTo(0, -h * 0.52, w * 0.23, -h * 0.46);
+      ctx.quadraticCurveTo(w * 0.37, -h * 0.38, w * 0.39, -h * 0.20);
+      ctx.lineTo(w * 0.43, h * 0.23);
+      ctx.quadraticCurveTo(w * 0.43, h * 0.39, w * 0.31, h * 0.43);
+      ctx.closePath();
       ctx.fill();
       ctx.shadowBlur = 0;
-      ctx.fillStyle = ego ? "#17344c" : "#25313c";
+      ctx.strokeStyle = ego ? "#a9ddff" : "#ffffff55";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      // Windshield and rear window, separated by the roof.
+      ctx.fillStyle = "#182d3d";
       ctx.beginPath();
-      ctx.roundRect(-width * 0.31, -height * 0.22, width * 0.62, height * 0.34, 4);
+      ctx.moveTo(-w * 0.29, -h * 0.24);
+      ctx.quadraticCurveTo(0, -h * 0.34, w * 0.29, -h * 0.24);
+      ctx.lineTo(w * 0.25, -h * 0.04);
+      ctx.lineTo(-w * 0.25, -h * 0.04);
+      ctx.closePath();
       ctx.fill();
-      ctx.fillStyle = "#f8e6b0";
-      ctx.fillRect(-width * 0.34, -height * 0.43, width * 0.18, 3);
-      ctx.fillRect(width * 0.16, -height * 0.43, width * 0.18, 3);
-      ctx.fillStyle = "#ef6c6c";
-      ctx.fillRect(-width * 0.34, height * 0.38, width * 0.18, 3);
-      ctx.fillRect(width * 0.16, height * 0.38, width * 0.18, 3);
+      ctx.fillStyle = "#263f50";
+      ctx.beginPath();
+      ctx.moveTo(-w * 0.25, h * 0.12);
+      ctx.lineTo(w * 0.25, h * 0.12);
+      ctx.lineTo(w * 0.29, h * 0.31);
+      ctx.quadraticCurveTo(0, h * 0.38, -w * 0.29, h * 0.31);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "#3c5668";
+      ctx.fillRect(-w * 0.23, -h * 0.015, w * 0.46, h * 0.12);
+      // Side mirrors and front/rear lighting.
+      ctx.fillStyle = color;
+      ctx.fillRect(-w * 0.49, -h * 0.22, w * 0.12, h * 0.09);
+      ctx.fillRect(w * 0.37, -h * 0.22, w * 0.12, h * 0.09);
+      ctx.fillStyle = "#fff0b5";
+      ctx.fillRect(-w * 0.29, -h * 0.46, w * 0.17, h * 0.035);
+      ctx.fillRect(w * 0.12, -h * 0.46, w * 0.17, h * 0.035);
+      ctx.fillStyle = "#ff625f";
+      ctx.fillRect(-w * 0.31, h * 0.39, w * 0.19, h * 0.045);
+      ctx.fillRect(w * 0.12, h * 0.39, w * 0.19, h * 0.045);
       ctx.restore();
     };
 
@@ -406,6 +449,8 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
             const blockedByVehicle = laneAhead !== undefined && gapAhead < 82 &&
               (laneAhead.speed < car.speed - 1.2 || gapAhead < 38);
             const blockedByObstacle = obstacleAhead !== undefined && obstacleGap < Math.max(105, car.speed * 4.5);
+            let shouldSlowForBlockedPath = false;
+            let blockedPathGap = Math.min(gapAhead, obstacleGap);
             if (blockedByVehicle || blockedByObstacle) {
               const sameDirectionLanes = direction > 0 ? [2, 3] : [0, 1];
               const alternatives = sameDirectionLanes
@@ -461,7 +506,22 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
                 })
                 .filter(candidate => candidate.safe)
                 .sort((a, b) => b.frontGap - a.frontGap);
-              if (alternatives.length > 0) car.laneTarget = alternatives[0].lane;
+              // Avoid lane weaving: after a merge, hold that lane for a while.
+              // If no safe opening exists (or the cooldown is active), stay put
+              // and reduce speed rather than repeatedly hunting for another lane.
+              if (alternatives.length > 0 && (car.laneChangeCooldown ?? 0) <= 0) {
+                car.laneTarget = alternatives[0].lane;
+                car.laneChangeCooldown = 9;
+              } else {
+                shouldSlowForBlockedPath = true;
+              }
+            }
+            if (car.laneChangeCooldown !== undefined && car.laneChangeCooldown > 0) {
+              car.laneChangeCooldown = Math.max(0, car.laneChangeCooldown - dt);
+            }
+            if (shouldSlowForBlockedPath) {
+              const safeGap = Math.max(0, blockedPathGap - 24);
+              trafficTarget = Math.min(trafficTarget, Math.sqrt(2 * 3.4 * safeGap));
             }
           }
           if (car.laneTarget !== undefined) {
