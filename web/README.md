@@ -28,7 +28,7 @@ npm run dev
 
 Open http://localhost:3000.
 
-## Matched controller comparison\n\nChoose a scenario and use **Compare all 3 controllers** to run baseline, safety, and steering against the same deterministic setup. The comparison endpoint accepts 1–25 episodes per controller and returns each controller's aggregate metrics. Because the current simulator is deterministic, repeated episodes are consistency checks rather than independent randomized samples.\n\n## Running a benchmark
+## Matched controller comparison\n\nChoose a scenario and use **Compare all 3 controllers** to run baseline, safety, and steering against the same deterministic setup. The comparison endpoint accepts 1–25 episodes per controller and returns each controller's aggregate metrics, including sample standard deviations when at least two episodes are run. Because the current simulator is deterministic, repeated episodes are consistency checks rather than independent randomized samples. Export the JSON and complete [the experiment report template](../docs/EXPERIMENT_REPORT_TEMPLATE.md) for your presentation.\n\n## Running a benchmark
 
 Select a controller and scenario in the dashboard, then choose **Run Python benchmark**.
 The dashboard sends a request to the local Python API and displays the returned
