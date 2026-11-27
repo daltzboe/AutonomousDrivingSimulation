@@ -319,6 +319,14 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
             current.crashed = true; current.collisions += 1; current.speed = 0;
           }
         }
+        for (const car of current.traffic) {
+          const longitudinalGap = Math.abs(car.s - current.distance);
+          if (longitudinalGap < 4.8 && Math.abs(current.lane - car.lane) < 0.42) {
+            current.crashed = true;
+            current.collisions += 1;
+            current.speed = 0;
+          }
+        }
         if (current.distance >= ROUTE_LENGTH) current.speed = 0;
       }
       draw();
