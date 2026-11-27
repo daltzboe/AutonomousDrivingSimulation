@@ -37,3 +37,14 @@ button:disabled { cursor: wait; opacity: .62; filter: saturate(.65); }
   .right-stack { display: grid !important; grid-template-columns: 1fr 1fr !important; }
   footer { color: #444 !important; }
 }
+
+
+/* Wider, longer, forward-moving four-lane browser simulation */
+.road-sim-wrap{position:relative;width:100%;min-width:0;background:#10201d;border-top:1px solid #273844;overflow:hidden}
+.road-sim-canvas{display:block;width:100%;height:clamp(430px,58vw,650px);max-height:680px;outline:none}
+.road-sim-hud{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:10px 14px;background:#0b141e;border-top:1px solid #263746;font:9px 'DM Mono';letter-spacing:.35px;color:#9aabba}
+.road-hud-status{display:flex;align-items:center;gap:7px;color:#cbd9e6;font-weight:600}
+.road-hud-dot{width:7px;height:7px;display:inline-block;border-radius:50%;background:#8595a4}
+.road-hud-dot.active{background:#4bd59d;box-shadow:0 0 10px #4bd59d88}
+.road-sim-hud .signal-red{color:#ff8580}.road-sim-hud .signal-yellow{color:#f2c56e}.road-sim-hud .signal-green{color:#70d8a8}
+@media(max-width:700px){.road-sim-canvas{height:clamp(390px,110vw,520px)}.road-sim-hud{gap:8px 10px;font-size:8px;padding:9px}.road-sim-hud span{white-space:nowrap}}
