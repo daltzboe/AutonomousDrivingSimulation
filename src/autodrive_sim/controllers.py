@@ -320,7 +320,10 @@ class IntelligentDrivingController:
             self.mode = DrivingMode.BRAKE
             return base
 
-        if abs(base.steering) > 0.08:
+        lane_following_steering = self.steering_controller.lane_follower.control(
+            vehicle, road
+        ).steering
+        if abs(base.steering - lane_following_steering) > 0.025:
             self.mode = DrivingMode.AVOID
         else:
             self.mode = DrivingMode.APPROACH
