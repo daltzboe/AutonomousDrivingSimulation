@@ -24,8 +24,13 @@ class BenchmarkAPITests(unittest.TestCase):
 
         self.assertEqual(report["scenario"], "outside")
         self.assertEqual(report["episode_count_per_controller"], 1)
-        self.assertEqual([item["controller"] for item in report["reports"]], ["baseline", "safety", "steering"])
+        self.assertEqual([item["controller"] for item in report["reports"]], ["baseline", "safety", "steering", "intelligent"])
         self.assertTrue(all(item["episode_count"] == 1 for item in report["reports"]))
+
+    def test_intelligent_controller_is_available_to_dashboard_api(self):
+        report = run_benchmark("intelligent", "center", 1)
+        self.assertEqual(report["controller"], "intelligent")
+        self.assertEqual(report["episodes"][0]["collision_events"], 0)
 
     def test_api_aggregates_repeatable_episodes(self):
         report = run_benchmark("baseline", "clear", 2)
