@@ -255,8 +255,13 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
         const aheadHazard = hazards
           .filter(h => h.lane === egoLane && h.s >= current.distance)
           .sort((a, b) => a.s - b.s)[0];
+        // Treat a vehicle as occupying our path while it is in our lane
+        // OR actively merging into it. This catches cut-ins before the lane
+        // animation reaches its midpoint.
         const sameLaneTraffic = current.traffic
-          .filter(c => c.lane === egoLane && c.s > current.distance)
+          .filter(c => c.s > current.distance &&
+            (Math.abs(c.lane - current.lane) < 0.72 ||
+             (c.laneTarget !== undefined && Math.round(c.laneTarget) === egoLane)))
           .sort((a, b) => a.s - b.s)[0];
         const upcomingSignal = signals.find(signal => signal.s >= current.distance && signal.s - current.distance < 110);
         let brake = false;
@@ -296,7 +301,9 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
         const carGap = sameLaneTraffic ? sameLaneTraffic.s - current.distance : Infinity;
         const obstacleManeuverDistance = Math.max(72, current.speed * 3.8);
         const needsObstacleAvoidance = obstacleGap < obstacleManeuverDistance;
-        const needsTrafficAvoidance = carGap < Math.max(30, current.speed * 1.8);
+        const closingSpeedToLead = sameLaneTraffic ? Math.max(0, current.speed - sameLaneTraffic.speed) : 0;
+        const leadBrakingDistance = current.speed * 1.25 + (current.speed * current.speed) / (2 * 6.2);
+        const needsTrafficAvoidance = carGap < Math.max(42, leadBrakingDistance + 12, current.speed * 2.6);
         const signalIsRed = upcomingSignal !== undefined &&
           ((current.elapsed + upcomingSignal.s * 0.013) % 24) >= 14;
         // A vehicle queued/stopped for a red light is not an overtaking target.
@@ -340,11 +347,15 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
 
         // Independently maintain a safe following gap. Brake smoothly based on
         // distance and relative speed instead of waiting until the last moment.
-        if (sameLaneTraffic && carGap < Math.max(22, current.speed * 1.5 + 8)) {
+        if (sameLaneTraffic && carGap < Math.max(58, leadBrakingDistance + 18)) {
+          // React early to a slowing or merging lead vehicle. Include closing
+          // speed and a reaction-time buffer so braking starts before a cut-in
+          // becomes an emergency.
           brake = true;
-          const followingStoppingDistance = Math.max(0, carGap - 8);
-          const safeFollowingSpeed = Math.sqrt(2 * 4.2 * followingStoppingDistance);
-          targetSpeed = Math.min(targetSpeed, safeFollowingSpeed, Math.max(0, sameLaneTraffic.speed + (carGap - 18) * 0.12));
+          const usableGap = Math.max(0, carGap - 10 - closingSpeedToLead * 0.8);
+          const safeFollowingSpeed = Math.sqrt(2 * 6.2 * usableGap);
+          const speedMatchedTarget = sameLaneTraffic.speed + Math.max(0, carGap - 20) * 0.16;
+          targetSpeed = Math.min(targetSpeed, safeFollowingSpeed, speedMatchedTarget);
         }
         if (brake && targetSpeed > current.speed) targetSpeed = current.speed;
         current.laneTarget = desiredLane;
@@ -387,9 +398,21 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
                     .filter(other => direction > 0 ? other.s < car.s : other.s > car.s)
                     .sort((a, b) => direction > 0 ? b.s - a.s : a.s - b.s)[0];
                   const frontGap = front ? Math.abs(front.s - car.s) : Infinity;
-                  const rearGap = rear ? Math.abs(car.s - rear.s) : Infinity;
-                  const rearClosingSpeed = rear ? Math.max(0, rear.speed - car.speed) : 0;
-                  const rearSafeGap = Math.max(28, 20 + rearClosingSpeed * 1.5);
+                  let rearGap = rear ? Math.abs(car.s - rear.s) : Infinity;
+                  let rearClosingSpeed = rear ? Math.max(0, rear.speed - car.speed) : 0;
+                  // Include the ego vehicle in the rear-clearance check. Without
+                  // this, traffic can merge directly in front of the ego car.
+                  const egoIsBehind = direction > 0
+                    ? current.distance < car.s && Math.round(current.lane) === candidate
+                    : current.distance > car.s && Math.round(current.lane) === candidate;
+                  if (egoIsBehind) {
+                    const egoGap = Math.abs(car.s - current.distance);
+                    if (egoGap < rearGap) {
+                      rearGap = egoGap;
+                      rearClosingSpeed = Math.max(0, current.speed - car.speed);
+                    }
+                  }
+                  const rearSafeGap = Math.max(38, 24 + rearClosingSpeed * 2.0);
                   const blockedLane = hazards.some(h => Math.round(h.lane) === candidate &&
                     (direction > 0 ? h.s > car.s && h.s - car.s < 125 : h.s < car.s && car.s - h.s < 125));
                   const frontIsTooClose = frontGap < 58;
