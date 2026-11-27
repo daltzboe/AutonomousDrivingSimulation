@@ -3,12 +3,25 @@
 import { useEffect, useMemo, useState } from "react";
 
 type Controller = "baseline" | "safety" | "steering";
-type Scenario = "clear" | "center" | "edge" | "multiple";
+type Scenario = "clear" | "center" | "edge" | "outside" | "multiple";
+type BenchmarkReport = {
+  controller: Controller;
+  scenario: Scenario;
+  episode_count: number;
+  aggregate: {
+    mean_lane_deviation_m: number | null;
+    mean_collision_events: number;
+    mean_route_completion_pct: number;
+    safe_stop_rate: number;
+  };
+  episodes: { collision_events: number; completed: number; stopped_before_route: number }[];
+};
+const simulatorApi = process.env.NEXT_PUBLIC_SIMULATOR_API_URL || "http://127.0.0.1:8000";
 const scenarios: Record<Scenario, { label: string; obstacles: { x: number; y: number }[] }> = {
   clear: { label: "Clear road", obstacles: [] },
   center: { label: "Center obstacle", obstacles: [{ x: 50, y: 35 }] },
   edge: { label: "Lane-edge obstacle", obstacles: [{ x: 50, y: 22 }] },
-  multiple: { label: "Multiple obstacles", obstacles: [{ x: 43, y: 35 }, { x: 66, y: 24 }] },
+  outside: { label: "Outside-lane obstacle", obstacles: [{ x: 50, y: 8 }] },\n  multiple: { label: "Multiple obstacles", obstacles: [{ x: 43, y: 35 }, { x: 66, y: 24 }] },
 };
 
 export default function Dashboard() {
@@ -18,6 +31,9 @@ export default function Dashboard() {
   const [progress, setProgress] = useState(18);
   const [speed, setSpeed] = useState(42);
   const [ticks, setTicks] = useState(0);
+  const [benchmark, setBenchmark] = useState<BenchmarkReport | null>(null);
+  const [benchmarkLoading, setBenchmarkLoading] = useState(false);
+  const [benchmarkError, setBenchmarkError] = useState("");
 
   useEffect(() => {
     if (!running) return;
@@ -82,7 +98,7 @@ export default function Dashboard() {
                 </div>
                 <div className="road-overlay"><span>● EGO VEHICLE</span><span>○ STATIC OBSTACLE</span></div>
               </div>
-              <div className="sim-controls"><button className="primary-btn" onClick={() => running ? setRunning(false) : run()}>{running ? "Ⅱ  Pause" : "▶  Run simulation"}</button><button className="secondary-btn" onClick={reset}>↺ Reset</button><div className="control-divider" /><label>CONTROLLER<select value={controller} onChange={(e) => {setController(e.target.value as Controller); reset();}}><option value="baseline">Baseline · lane following</option><option value="safety">Safety · emergency brake</option><option value="steering">Steering · obstacle avoidance</option></select></label><label>SCENARIO<select value={scenario} onChange={(e) => {setScenario(e.target.value as Scenario); reset();}}><option value="clear">Clear road</option><option value="center">Center obstacle</option><option value="edge">Lane-edge obstacle</option><option value="multiple">Multiple obstacles</option></select></label></div>
+              <div className="sim-controls"><button className="primary-btn" disabled={benchmarkLoading} onClick={() => running ? setRunning(false) : run()}>{benchmarkLoading ? "Running Python benchmark…" : running ? "Ⅱ  Pause preview" : "▶  Run Python benchmark"}</button><button className="secondary-btn" onClick={reset}>↺ Reset</button><div className="control-divider" /><label>CONTROLLER<select value={controller} onChange={(e) => {setController(e.target.value as Controller); reset();}}><option value="baseline">Baseline · lane following</option><option value="safety">Safety · emergency brake</option><option value="steering">Steering · obstacle avoidance</option></select></label><label>SCENARIO<select value={scenario} onChange={(e) => {setScenario(e.target.value as Scenario); reset();}}><option value="clear">Clear road</option><option value="center">Center obstacle</option><option value="edge">Lane-edge obstacle</option><option value="outside">Outside-lane obstacle</option><option value="multiple">Multiple obstacles</option></select></label></div>
             </div>
             <div className="right-stack">
               <div className="panel telemetry-panel"><div className="panel-head"><div><strong>Vehicle telemetry</strong><small>LIVE SYSTEM READOUT</small></div><span className="telemetry-icon">⌁</span></div><Telemetry label="Longitudinal speed" value={speed.toFixed(1)} unit="m/s" pct={speed / 70 * 100}/><Telemetry label="Lateral offset" value={(laneOffset * 0.1).toFixed(2)} unit="m" pct={laneOffset * 1.2}/><Telemetry label="Route progress" value={completion.toString()} unit="%" pct={completion}/><div className="telemetry-foot"><span>SIM TIME</span><b>{elapsed}s</b><span>FIXED STEP</span><b>0.10s</b></div></div>
@@ -90,10 +106,10 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="section-row benchmark-heading"><div><h2>Experiment insights</h2><p>Evaluation context for the selected run</p></div><span className="dataset-label">DEMO DATA · LIVE UI PREVIEW</span></div>
+          <div className="section-row benchmark-heading"><div><h2>Experiment insights</h2><p>Metrics returned by the Python benchmark</p></div><span className="dataset-label">{benchmark ? "PYTHON BENCHMARK · REAL RESULT" : "WAITING FOR PYTHON RUN"}</span></div>
           <div className="bottom-grid">
             <div className="panel insight-panel"><div className="panel-head"><div><strong>Scenario configuration</strong><small>DETERMINISTIC TEST SETUP</small></div></div><div className="scenario-row"><div className="scenario-icon">⌖</div><div><b>{scenarios[scenario].label}</b><small>{obstacleCount} obstacle{obstacleCount === 1 ? "" : "s"} · Single-lane road</small></div><span className="scenario-state">SELECTED</span></div><div className="scenario-details"><span>ROAD WIDTH <b>4.8 m</b></span><span>ROUTE LENGTH <b>1,200 m</b></span><span>TIME STEP <b>0.10 s</b></span></div></div>
-            <div className="panel insight-panel"><div className="panel-head"><div><strong>Research metrics</strong><small>METRICS AVAILABLE IN PYTHON BENCHMARK</small></div></div><div className="metric-list"><div><span>Lane deviation</span><b>— <small>m</small></b></div><div><span>Collision events</span><b>—</b></div><div><span>Route completion</span><b>{completion}<small>%</small></b></div><div><span>Steering MAE</span><b>Not measured</b></div></div></div>
+            <div className="panel insight-panel"><div className="panel-head"><div><strong>Research metrics</strong><small>{benchmark ? `PYTHON · ${benchmark.episode_count} EPISODE` : "REAL RESULTS APPEAR AFTER A PYTHON RUN"}</small></div></div>{benchmarkError && <p role="alert" className="api-error">{benchmarkError}</p>}<div className="metric-list"><div><span>Mean lane deviation</span><b>{benchmark?.aggregate.mean_lane_deviation_m == null ? "—" : benchmark.aggregate.mean_lane_deviation_m.toFixed(3)}<small> m</small></b></div><div><span>Mean collision events</span><b>{benchmark ? benchmark.aggregate.mean_collision_events.toFixed(2) : "—"}</b></div><div><span>Route completion</span><b>{benchmark ? benchmark.aggregate.mean_route_completion_pct.toFixed(1) : "—"}<small>%</small></b></div><div><span>Safe-stop rate</span><b>{benchmark ? (benchmark.aggregate.safe_stop_rate * 100).toFixed(0) : "—"}<small>%</small></b></div><div><span>Steering MAE</span><b>Not measured</b></div></div>{benchmark && <p className="benchmark-note">Completed {benchmark.episodes.filter((episode) => episode.completed).length} of {benchmark.episode_count} episodes. Simulator: lightweight 2D.</p>}</div>
           </div>
           <footer><span>Autonomy Lab <b>·</b> UTSA Computer Science Research Project</span><span>SIMULATION BUILD 0.1.0 <b>·</b> NOT FOR REAL-WORLD VEHICLE CONTROL</span></footer>
         </div>
