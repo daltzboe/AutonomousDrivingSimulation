@@ -435,6 +435,8 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
           // fixed obstacle. A car must not wait forever behind a blocked leader
           // when the neighboring lane has a safe opening.
           const laneChanging = car.laneTarget !== undefined && Math.abs(car.lane - car.laneTarget) > 0.08;
+          let slowForBlockedPath = false;
+          let blockedPathDistance = Infinity;
           if (!laneChanging) {
             const laneAhead = current.traffic
               .filter(other => other.id !== car.id && Math.round(other.lane) === Math.round(car.lane) &&
@@ -449,9 +451,8 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
             const blockedByVehicle = laneAhead !== undefined && gapAhead < 82 &&
               (laneAhead.speed < car.speed - 1.2 || gapAhead < 38);
             const blockedByObstacle = obstacleAhead !== undefined && obstacleGap < Math.max(105, car.speed * 4.5);
-            let shouldSlowForBlockedPath = false;
-            let blockedPathGap = Math.min(gapAhead, obstacleGap);
             if (blockedByVehicle || blockedByObstacle) {
+              blockedPathDistance = Math.min(gapAhead, obstacleGap);
               const sameDirectionLanes = direction > 0 ? [2, 3] : [0, 1];
               const alternatives = sameDirectionLanes
                 .filter(candidate => candidate !== Math.round(car.lane))
@@ -513,15 +514,11 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
                 car.laneTarget = alternatives[0].lane;
                 car.laneChangeCooldown = 9;
               } else {
-                shouldSlowForBlockedPath = true;
+                slowForBlockedPath = true;
               }
             }
             if (car.laneChangeCooldown !== undefined && car.laneChangeCooldown > 0) {
               car.laneChangeCooldown = Math.max(0, car.laneChangeCooldown - dt);
-            }
-            if (shouldSlowForBlockedPath) {
-              const safeGap = Math.max(0, blockedPathGap - 24);
-              trafficTarget = Math.min(trafficTarget, Math.sqrt(2 * 3.4 * safeGap));
             }
           }
           if (car.laneTarget !== undefined) {
@@ -535,6 +532,10 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
             : undefined;
           const nominalSpeed = Math.min(SPEED_LIMIT_MS, car.lane < 2 ? 15 + (car.id % 5) : 10 + (car.id % 7));
           let trafficTarget = nominalSpeed;
+          if (slowForBlockedPath) {
+            const safeGap = Math.max(0, blockedPathDistance - 24);
+            trafficTarget = Math.min(trafficTarget, Math.sqrt(2 * 3.4 * safeGap));
+          }
           // Merging vehicles ease off the throttle while crossing the lane line.
           // This gives nearby traffic time to recognize the reserved space and
           // prevents two fast lane changes from converging at the same point.
