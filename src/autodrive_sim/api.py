@@ -66,6 +66,19 @@ def run_benchmark(controller: str, scenario: str, episodes: int) -> dict:
     }
 
 
+def run_controller_comparison(scenario: str, episodes: int) -> dict:
+    """Evaluate all controllers on the same deterministic scenario."""
+    reports = [run_benchmark(name, scenario, episodes) for name in ("baseline", "safety", "steering")]
+    return {
+        "scenario": scenario,
+        "simulator": "lightweight_2d",
+        "episode_count_per_controller": episodes,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "reports": reports,
+        "interpretation": "Compare collision and route-completion trade-offs. Repeated deterministic episodes assess consistency, not independent randomized trials.",
+    }
+
+
 class SimulatorAPIHandler(BaseHTTPRequestHandler):
     """Small standard-library API intended for local dashboard development."""
 
@@ -99,7 +112,8 @@ class SimulatorAPIHandler(BaseHTTPRequestHandler):
         self._send_json(HTTPStatus.NOT_FOUND, {"error": "Endpoint not found."})
 
     def do_POST(self) -> None:
-        if urlparse(self.path).path != "/api/benchmark":
+        path = urlparse(self.path).path
+        if path not in {"/api/benchmark", "/api/compare"}:
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "Endpoint not found."})
             return
 
@@ -114,18 +128,17 @@ class SimulatorAPIHandler(BaseHTTPRequestHandler):
             controller = payload.get("controller", "steering")
             scenario = payload.get("scenario", "center")
             episodes = payload.get("episodes", 1)
-
-            if not isinstance(controller, str) or controller not in CONTROLLERS:
+            if path == "/api/benchmark" and (not isinstance(controller, str) or controller not in CONTROLLERS):
                 raise ValueError("Choose baseline, safety, or steering controller.")
-            if scenario not in SCENARIOS:
+            if not isinstance(scenario, str) or scenario not in SCENARIOS:
                 raise ValueError(f"Choose one of these scenarios: {', '.join(SCENARIOS)}.")
-            if isinstance(episodes, bool) or not isinstance(episodes, int) or not 1 <= episodes <= 100:
-                raise ValueError("episodes must be a whole number from 1 to 100.")
+            maximum = 25 if path == "/api/compare" else 100
+            if isinstance(episodes, bool) or not isinstance(episodes, int) or not 1 <= episodes <= maximum:
+                raise ValueError(f"episodes must be a whole number from 1 to {maximum}.")
 
-            self._send_json(
-                HTTPStatus.OK,
-                {"status": "completed", "report": run_benchmark(controller, scenario, episodes)},
-            )
+            report = (run_controller_comparison(scenario, episodes) if path == "/api/compare"
+                      else run_benchmark(controller, scenario, episodes))
+            self._send_json(HTTPStatus.OK, {"status": "completed", "report": report})
         except (json.JSONDecodeError, UnicodeDecodeError):
             self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Request body must contain valid JSON."})
         except ValueError as error:
