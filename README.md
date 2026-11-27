@@ -96,7 +96,7 @@ The visual demo starts in autopilot mode. Switch to manual mode to demonstrate s
 
 For a short presentation walkthrough and research-status notes, see [docs/DEMO_GUIDE.md](docs/DEMO_GUIDE.md).
 For the obstacle scenario definitions, experiment commands, and interpretation guide, see [docs/SCENARIO_BENCHMARKS.md](docs/SCENARIO_BENCHMARKS.md).
-For a slide-by-slide class presentation outline and preliminary center-obstacle results, see [docs/CLASS_PRESENTATION.md](docs/CLASS_PRESENTATION.md).
+For a slide-by-slide class presentation outline and preliminary center-obstacle results, see [docs/CLASS_PRESENTATION.md](docs/CLASS_PRESENTATION.md).\nFor a fill-in report structure for the matched three-controller experiment, see [docs/EXPERIMENT_REPORT_TEMPLATE.md](docs/EXPERIMENT_REPORT_TEMPLATE.md).
 For the vehicle equations, pure-pursuit steering model, and metric definitions, see [docs/MODEL_AND_METRICS.md](docs/MODEL_AND_METRICS.md).
 For the planned CARLA/CNN experiment design and fair evaluation protocol, see [docs/RESEARCH_PLAN.md](docs/RESEARCH_PLAN.md).
 
