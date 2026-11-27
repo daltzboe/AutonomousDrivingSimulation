@@ -302,8 +302,7 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
         if (brake && targetSpeed > current.speed) targetSpeed = current.speed;
         current.laneTarget = desiredLane;
         current.lane += (current.laneTarget - current.lane) * Math.min(1, dt * 1.25);
-        const targetSpeed = brake ? 0 : (controller === "safety" ? 16 : controller === "baseline" ? 20 : 19);
-        const acceleration = brake ? 9 : 3.1;
+        const acceleration = targetSpeed < current.speed ? 5.2 : 2.8;
         current.speed += clamp(targetSpeed - current.speed, -acceleration * dt, acceleration * dt);
         current.distance += current.speed * dt;
         current.traffic.forEach(car => { car.s += (car.lane < 2 ? -car.speed : car.speed) * dt; });
