@@ -1,6 +1,7 @@
 """Baseline and obstacle-aware controllers for the lightweight simulation."""
 
 from dataclasses import dataclass, field
+from enum import Enum
 import math
 
 from autodrive_sim.simulator.road import Road
@@ -243,4 +244,99 @@ class SteeringObstacleAvoidanceController:
         )
         return self.lane_follower._track_target(
             vehicle, target_y, self.lane_follower.lookahead_m
+        )
+
+
+
+class DrivingMode(str, Enum):
+    """High-level autonomous-driving states exposed for telemetry and tests."""
+
+    CRUISE = "CRUISE"
+    APPROACH = "APPROACH"
+    AVOID = "AVOID"
+    BRAKE = "BRAKE"
+
+
+@dataclass
+class IntelligentDrivingController:
+    """Coordinate obstacle avoidance with speed decisions.
+
+    The existing steering controller remains responsible for path geometry.
+    This layer decides whether to cruise, approach, avoid, or brake, and
+    reduces speed as a relevant obstacle gets closer. It is a deterministic
+    rule-based controller, not a trained machine-learning policy.
+    """
+
+    steering_controller: SteeringObstacleAvoidanceController = field(
+        default_factory=SteeringObstacleAvoidanceController
+    )
+    target_speed_mps: float = 10.0
+    crawl_speed_mps: float = 5.0
+    approach_distance_m: float = 45.0
+    speed_gain: float = 0.35
+    mode: DrivingMode = field(default=DrivingMode.CRUISE, init=False)
+
+    def __post_init__(self) -> None:
+        values = (
+            self.target_speed_mps,
+            self.crawl_speed_mps,
+            self.approach_distance_m,
+            self.speed_gain,
+        )
+        if not all(math.isfinite(value) for value in values):
+            raise ValueError("Decision-controller settings must be finite.")
+        if self.target_speed_mps <= 0 or self.crawl_speed_mps < 0:
+            raise ValueError("Target speed must be positive and crawl speed non-negative.")
+        if self.crawl_speed_mps > self.target_speed_mps:
+            raise ValueError("Crawl speed cannot exceed target speed.")
+        if self.approach_distance_m <= 0 or self.speed_gain <= 0:
+            raise ValueError("Approach distance and speed gain must be positive.")
+
+    def control(self, vehicle: Vehicle, road: Road, obstacles=()) -> ControlCommand:
+        """Select a driving mode and produce a safe normalized control command."""
+        obstacle_list = tuple(
+            obstacle for obstacle in obstacles
+            if obstacle.x >= vehicle.x - 1.0
+            and abs(obstacle.y - road.center_y(obstacle.x))
+            <= road.lane_width / 2.0 + obstacle.radius
+        )
+        nearest = min(
+            obstacle_list,
+            key=lambda obstacle: obstacle.x - vehicle.x,
+            default=None,
+        )
+        base = self.steering_controller.control(vehicle, road, obstacle_list)
+
+        if nearest is None:
+            self.mode = DrivingMode.CRUISE
+            return base
+
+        distance = max(0.0, nearest.x - vehicle.x)
+        if distance > self.approach_distance_m:
+            self.mode = DrivingMode.CRUISE
+            return base
+
+        if base.brake >= 0.5:
+            self.mode = DrivingMode.BRAKE
+            return base
+
+        if abs(base.steering) > 0.08:
+            self.mode = DrivingMode.AVOID
+        else:
+            self.mode = DrivingMode.APPROACH
+
+        # Reduce the target speed progressively as the obstacle gets closer.
+        # The path planner still chooses the steering direction; this layer
+        # only adjusts longitudinal control.
+        progress = _clamp(distance / self.approach_distance_m, 0.0, 1.0)
+        desired_speed = self.crawl_speed_mps + (
+            self.target_speed_mps - self.crawl_speed_mps
+        ) * progress
+        speed_error = desired_speed - vehicle.speed
+        throttle = _clamp(speed_error * self.speed_gain, 0.0, 1.0)
+        brake = _clamp(-speed_error * self.speed_gain, 0.0, 1.0)
+        return ControlCommand(
+            throttle=throttle,
+            brake=brake,
+            steering=base.steering,
         )
