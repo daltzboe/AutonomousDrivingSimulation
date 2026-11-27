@@ -411,8 +411,13 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
               const alternatives = sameDirectionLanes
                 .filter(candidate => candidate !== Math.round(car.lane))
                 .map(candidate => {
+                  // A vehicle reserves BOTH its current lane and intended lane
+                  // throughout a merge. This prevents another vehicle from
+                  // choosing the same opening while the first car is crossing.
                   const vehicles = current.traffic.filter(other =>
-                    other.id !== car.id && Math.round(other.lane) === candidate);
+                    other.id !== car.id &&
+                    (Math.round(other.lane) === candidate ||
+                     (other.laneTarget !== undefined && Math.round(other.laneTarget) === candidate)));
                   const front = vehicles
                     .filter(other => direction > 0 ? other.s > car.s : other.s < car.s)
                     .sort((a, b) => direction > 0 ? a.s - b.s : b.s - a.s)[0];
@@ -422,23 +427,38 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
                   const frontGap = front ? Math.abs(front.s - car.s) : Infinity;
                   let rearGap = rear ? Math.abs(car.s - rear.s) : Infinity;
                   let rearClosingSpeed = rear ? Math.max(0, rear.speed - car.speed) : 0;
-                  // Include the ego vehicle in the rear-clearance check. Without
-                  // this, traffic can merge directly in front of the ego car.
-                  const egoIsBehind = direction > 0
-                    ? current.distance < car.s && Math.round(current.lane) === candidate
-                    : current.distance > car.s && Math.round(current.lane) === candidate;
-                  if (egoIsBehind) {
+
+                  // Include the ego vehicle and its intended lane in the same
+                  // clearance calculation, so traffic cannot merge across it.
+                  const egoLaneReserved = Math.round(current.lane) === candidate ||
+                    Math.round(current.laneTarget) === candidate;
+                  if (egoLaneReserved) {
+                    const egoIsAhead = direction > 0
+                      ? current.distance > car.s
+                      : current.distance < car.s;
                     const egoGap = Math.abs(car.s - current.distance);
-                    if (egoGap < rearGap) {
+                    if (egoIsAhead && egoGap < frontGap) {
+                      // A vehicle ahead of this traffic car is a front constraint.
+                      // Treat it as occupied rather than assuming the lane is open.
+                    } else if (!egoIsAhead && egoGap < rearGap) {
                       rearGap = egoGap;
                       rearClosingSpeed = Math.max(0, current.speed - car.speed);
                     }
                   }
-                  const rearSafeGap = Math.max(38, 24 + rearClosingSpeed * 2.0);
+                  const rearSafeGap = Math.max(58, 34 + rearClosingSpeed * 2.4);
                   const blockedLane = hazards.some(h => Math.round(h.lane) === candidate &&
-                    (direction > 0 ? h.s > car.s && h.s - car.s < 125 : h.s < car.s && car.s - h.s < 125));
-                  const frontIsTooClose = frontGap < 58;
-                  return { lane: candidate, frontGap, safe: !blockedLane && !frontIsTooClose && rearGap > rearSafeGap };
+                    (direction > 0 ? h.s > car.s && h.s - car.s < 145 : h.s < car.s && car.s - h.s < 145));
+                  const frontIsTooClose = frontGap < 76;
+                  const anotherCarMergingIntoLane = vehicles.some(other =>
+                    other.laneTarget !== undefined &&
+                    Math.round(other.laneTarget) === candidate &&
+                    Math.abs(other.lane - other.laneTarget) > 0.08);
+                  return {
+                    lane: candidate,
+                    frontGap,
+                    safe: !blockedLane && !frontIsTooClose &&
+                      rearGap > rearSafeGap && !anotherCarMergingIntoLane,
+                  };
                 })
                 .filter(candidate => candidate.safe)
                 .sort((a, b) => b.frontGap - a.frontGap);
@@ -456,10 +476,18 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
             : undefined;
           const nominalSpeed = Math.min(SPEED_LIMIT_MS, car.lane < 2 ? 15 + (car.id % 5) : 10 + (car.id % 7));
           let trafficTarget = nominalSpeed;
+          // Merging vehicles ease off the throttle while crossing the lane line.
+          // This gives nearby traffic time to recognize the reserved space and
+          // prevents two fast lane changes from converging at the same point.
+          if (laneChanging) {
+            trafficTarget = Math.min(trafficTarget, Math.max(6.5, car.speed - 2.4));
+          }
           // Traffic reacts to stationary hazards in its lane: brake to a safe
           // standstill before the object instead of clipping through it.
           const trafficHazard = hazards
-            .filter(h => Math.round(h.lane) === Math.round(car.lane) && (direction > 0 ? h.s > car.s : h.s < car.s))
+            .filter(h => (Math.round(h.lane) === Math.round(car.lane) ||
+              (laneChanging && Math.round(h.lane) === Math.round(car.laneTarget ?? car.lane))) &&
+              (direction > 0 ? h.s > car.s : h.s < car.s))
             .sort((a, b) => direction > 0 ? a.s - b.s : b.s - a.s)[0];
           if (trafficHazard) {
             const hazardGap = Math.abs(trafficHazard.s - car.s) - 10;
