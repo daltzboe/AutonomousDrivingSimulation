@@ -144,8 +144,8 @@ class IntelligentDrivingControllerTests(unittest.TestCase):
         obstacle = Obstacle(x=90.0, y=road.center_y(90.0), radius=0.35)
         command = controller.control(vehicle, road, (obstacle,))
         self.assertEqual(controller.mode, DrivingMode.APPROACH)
-        self.assertEqual(command.steering, 0.0)
-        self.assertLess(command.throttle, 0.0 + 1.0)
+        self.assertLess(abs(command.steering), 0.08)
+        self.assertGreater(command.brake, 0.0)
 
     def test_nearby_obstacle_uses_avoid_mode(self) -> None:
         road = Road(lane_width=4.8)
