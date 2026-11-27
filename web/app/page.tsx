@@ -115,7 +115,7 @@ export default function Dashboard() {
       <section className="main">
         <header className="topbar"><div className="crumb">Projects <span>/</span> <b>Autonomous Driving Simulation</b></div><div className="top-actions"><span className="env-pill">● SIMULATION ENVIRONMENT</span><div className="top-avatar">DO</div></div></header>
         <div className="content">
-          <div className="page-heading"><div><div className="eyebrow">RESEARCH OVERVIEW <span>•</span> EXPERIMENT 001</div><h1>Autonomous Driving <em>Research</em></h1><p>Monitor vehicle behavior, evaluate control strategies, and explore simulation outcomes.</p></div><button className="export-btn" onClick={() => window.print()}>↥ <span>Export view</span></button></div>
+          <div className="page-heading"><div><div className="eyebrow">RESEARCH OVERVIEW <span>•</span> EXPERIMENT 001</div><h1>Autonomous Driving <em>Research</em></h1><p>Team research project · Dalton Opudo, Dexter & William. Evaluate controllers with reproducible Python experiments.</p></div><button className="export-btn" onClick={() => window.print()}>↥ <span>Export view</span></button></div>
 
           <div className="stats-grid">
             <Stat label="SIMULATION STATUS" value={running ? "Running" : progress >= 94 ? "Complete" : "Standby"} detail={running ? "Live episode in progress" : "Awaiting execution"} icon="◉" accent={running ? "green" : "blue"} />
