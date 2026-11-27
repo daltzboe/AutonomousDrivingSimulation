@@ -26,6 +26,11 @@ ALLOWED_ORIGINS = {
 }
 
 
+def sample_std(values: list[float]) -> float | None:
+    """Return sample standard deviation when at least two runs are available."""
+    return statistics.stdev(values) if len(values) >= 2 else None
+
+
 def run_benchmark(controller: str, scenario: str, episodes: int) -> dict:
     """Run repeatable episodes and return the same metrics as the CLI."""
     results = [
@@ -44,18 +49,13 @@ def run_benchmark(controller: str, scenario: str, episodes: int) -> dict:
         "episode_count": len(results),
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "aggregate": {
-            "mean_lane_deviation_m": (
-                statistics.mean(lane_values) if lane_values else None
-            ),
-            "mean_collision_events": statistics.mean(
-                int(result["collision_events"]) for result in results
-            ),
-            "mean_route_completion_pct": statistics.mean(
-                float(result["route_completion_pct"]) for result in results
-            ),
-            "safe_stop_rate": statistics.mean(
-                int(result["stopped_before_route"]) for result in results
-            ),
+            "mean_lane_deviation_m": statistics.mean(lane_values) if lane_values else None,
+            "std_lane_deviation_m": sample_std(lane_values),
+            "mean_collision_events": statistics.mean(float(result["collision_events"]) for result in results),
+            "std_collision_events": sample_std([float(result["collision_events"]) for result in results]),
+            "mean_route_completion_pct": statistics.mean(float(result["route_completion_pct"]) for result in results),
+            "std_route_completion_pct": sample_std([float(result["route_completion_pct"]) for result in results]),
+            "safe_stop_rate": statistics.mean(float(result["stopped_before_route"]) for result in results),
         },
         "episodes": results,
         "notes": [
