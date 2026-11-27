@@ -215,17 +215,24 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
         const cycle = (current.elapsed + signal.s * 0.013) % 24;
         signal.phase = cycle < 10 ? "green" : cycle < 14 ? "yellow" : "red";
         if (relative > 0 && relative < 85) nearestSignal = signal.phase.toUpperCase();
-        ctx.fillStyle = "#1c252d"; ctx.fillRect(left + lanePx * 2 - 4, y - 32, lanePx * 2 + 8, 6);
-        ctx.fillStyle = "#252e37"; ctx.fillRect(left + lanePx * 2 - 5, y - 28, 10, 40);
-        const colors = ["#df5754", "#e5b34e", "#51c77d"];
-        const active = signal.phase === "red" ? 0 : signal.phase === "yellow" ? 1 : 2;
-        colors.forEach((color, i) => {
-          ctx.fillStyle = i === active ? color : "#4b555d";
-          ctx.beginPath(); ctx.arc(left + lanePx * 2, y - 20 + i * 10, 4, 0, Math.PI * 2); ctx.fill();
-        });
-        ctx.strokeStyle = "#f1d477"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(left + lanePx * 2, y - 15); ctx.lineTo(left + roadWidth, y - 15); ctx.stroke();
-        if (relative > 0 && relative < 34 && signal.phase !== "green") {
-          ctx.fillStyle = "#f4d16f"; ctx.font = "600 10px sans-serif"; ctx.textAlign = "center"; ctx.fillText("STOP LINE", left + lanePx * 3, y + 27);
+        // The signal gantry and stop lines serve only our-direction lanes 2
+        // and 3. No signal hardware is drawn over the oncoming carriageway.
+        ctx.fillStyle = "#1c252d"; ctx.fillRect(left + lanePx * 2, y - 32, lanePx * 2, 6);
+        for (const signalLane of [2, 3]) {
+          const signalX = left + lanePx * (signalLane + 0.5);
+          ctx.fillStyle = "#252e37"; ctx.fillRect(signalX - 5, y - 28, 10, 40);
+          const colors = ["#df5754", "#e5b34e", "#51c77d"];
+          const active = signal.phase === "red" ? 0 : signal.phase === "yellow" ? 1 : 2;
+          colors.forEach((color, i) => {
+            ctx.fillStyle = i === active ? color : "#4b555d";
+            ctx.beginPath(); ctx.arc(signalX, y - 20 + i * 10, 4, 0, Math.PI * 2); ctx.fill();
+          });
+          ctx.strokeStyle = "#f1d477"; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(signalX - lanePx * 0.42, y + 14); ctx.lineTo(signalX + lanePx * 0.42, y + 14); ctx.stroke();
+          if (relative > 0 && relative < 34 && signal.phase !== "green") {
+            ctx.fillStyle = "#f4d16f"; ctx.font = "600 10px sans-serif"; ctx.textAlign = "center";
+            ctx.fillText("STOP", signalX, y + 29);
+          }
         }
       }
       current.signal = nearestSignal;
@@ -441,9 +448,12 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
           if (car.laneTarget !== undefined) {
             car.lane += (car.laneTarget - car.lane) * Math.min(1, dt * 1.1);
           }
-          const nextSignal = signals
-            .filter(signal => direction > 0 ? signal.s > car.s : signal.s < car.s)
-            .sort((a, b) => direction > 0 ? a.s - b.s : b.s - a.s)[0];
+          // Signals belong only to the two lanes travelling with the ego
+          // vehicle. Oncoming lanes have their own opposing signal system and
+          // must not react to this carriageway's red lights.
+          const nextSignal = direction > 0
+            ? signals.filter(signal => signal.s > car.s).sort((a, b) => a.s - b.s)[0]
+            : undefined;
           const nominalSpeed = Math.min(SPEED_LIMIT_MS, car.lane < 2 ? 15 + (car.id % 5) : 10 + (car.id % 7));
           let trafficTarget = nominalSpeed;
           // Traffic reacts to stationary hazards in its lane: brake to a safe
@@ -477,6 +487,18 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
             const gap = Math.abs(sameLaneAhead.s - car.s) - 22;
             const followSpeed = Math.sqrt(Math.max(0, 2 * 4.5 * Math.max(0, gap)));
             trafficTarget = Math.min(trafficTarget, followSpeed, sameLaneAhead.speed + Math.max(0, gap - 10) * 0.08);
+          }
+          // Treat the ego vehicle as a real lead vehicle for traffic behind it.
+          // This is critical when the ego stops at a red light: following cars
+          // must brake and queue instead of driving into the rear bumper.
+          if (direction > 0 && car.lane >= 2 && Math.abs(car.lane - current.lane) < 0.42 && car.s < current.distance) {
+            const egoGap = current.distance - car.s - 24;
+            const egoFollowSpeed = Math.sqrt(Math.max(0, 2 * 5.2 * Math.max(0, egoGap)));
+            trafficTarget = Math.min(
+              trafficTarget,
+              egoFollowSpeed,
+              current.speed + Math.max(0, egoGap - 8) * 0.08,
+            );
           }
           car.speed += clamp(trafficTarget - car.speed, -8 * dt, 4.5 * dt);
           car.s += direction * car.speed * dt;
