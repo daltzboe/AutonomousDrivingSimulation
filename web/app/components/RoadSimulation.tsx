@@ -60,12 +60,12 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
       if (scenario === "multiple") hazards.push({ s: 300, lane: 3, kind: "barrier" }, { s: 345, lane: 2, kind: "cone" }, { s: 760, lane: 2, kind: "barrier" }, { s: 1280, lane: 3, kind: "cone" }, { s: 1810, lane: 2, kind: "barrier" }, { s: 2250, lane: 3, kind: "cone" });
       signals = [480, 1040, 1580, 2180, 2580].map((distance, i) => ({ s: distance, phase: i % 3 === 0 ? "red" : "green" }));
       s.traffic = [
-        { id: 1, lane: 0, s: 18, speed: 16, color: COLORS[0] },
-        { id: 2, lane: 1, s: 42, speed: 19, color: COLORS[1] },
-        { id: 3, lane: 3, s: 34, speed: 12, color: COLORS[2] },
-        { id: 4, lane: 0, s: 68, speed: 18, color: COLORS[3] },
-        { id: 5, lane: 1, s: 86, speed: 15, color: COLORS[4] },
-        { id: 6, lane: 3, s: 112, speed: 16, color: COLORS[5] },
+        { id: 1, lane: 0, s: 565, speed: 16, color: COLORS[0] },
+        { id: 2, lane: 1, s: 690, speed: 19, color: COLORS[1] },
+        { id: 3, lane: 3, s: 125, speed: 12, color: COLORS[2] },
+        { id: 4, lane: 0, s: 980, speed: 18, color: COLORS[3] },
+        { id: 5, lane: 1, s: 1125, speed: 15, color: COLORS[4] },
+        { id: 6, lane: 3, s: 255, speed: 16, color: COLORS[5] },
       ];
       spawnId = 7;
       nextTrafficSpawnDistance = 245;
@@ -301,7 +301,7 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
         // Attempt a safe lane change early. If no lane is safe, reduce speed
         // using stopping-distance physics and wait before the obstacle while
         // rechecking the lanes every frame (never accelerate into it).
-        if (needsObstacleAvoidance || (controller === "steering" && needsTrafficAvoidance)) {
+        if (needsObstacleAvoidance || needsTrafficAvoidance) {
           const requiredGap = needsObstacleAvoidance ? Math.max(32, current.speed * 1.8) : Math.max(24, current.speed * 1.35);
           const candidates = [2, 3]
             .filter(lane => lane !== egoLane)
@@ -335,7 +335,7 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
         current.laneTarget = desiredLane;
         current.lane += (current.laneTarget - current.lane) * Math.min(1, dt * 1.25);
         // Faster, responsive launch after green while preserving smooth braking.
-        const acceleration = targetSpeed < current.speed ? 7.2 : 5.4;
+        const acceleration = targetSpeed < current.speed ? 8.2 : 8.0;
         current.speed += clamp(targetSpeed - current.speed, -acceleration * dt, acceleration * dt);
         current.distance += current.speed * dt;
         current.traffic.forEach(car => {
@@ -386,7 +386,7 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
           // visible without placing a new car directly on top of existing traffic.
           const id = spawnId++;
           const lane = id % 4;
-          const spawnS = current.distance + 145 + (id % 5) * 34;
+          const spawnS = current.distance + (lane < 2 ? 340 + (id % 5) * 42 : 145 + (id % 5) * 34);
           const spawnLaneClear = current.traffic.every(other =>
             Math.round(other.lane) !== lane || Math.abs(other.s - spawnS) > 55);
           if (spawnLaneClear) {
