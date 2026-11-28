@@ -132,7 +132,7 @@ class SteeringObstacleAvoidanceController:
     vehicle_radius_m: float = 0.8
     lateral_clearance_m: float = 0.1
     boundary_margin_m: float = 0.1
-    detection_range_m: float = 30.0
+    detection_range_m: float = 60.0
 
     def __post_init__(self) -> None:
         values = (
@@ -155,10 +155,12 @@ class SteeringObstacleAvoidanceController:
 
     def _path_offset(self, x: float, obstacle_x: float, offset: float) -> float:
         lookahead = self.lane_follower.lookahead_m
-        start = obstacle_x - 3.0 * lookahead
-        peak_start = obstacle_x - lookahead
-        peak_end = obstacle_x + 0.5 * lookahead
-        end = obstacle_x + 3.0 * lookahead
+        # Begin the maneuver early and hold the lateral clearance through
+        # the obstacle before smoothly returning to the lane center.
+        start = obstacle_x - 4.0 * lookahead
+        peak_start = obstacle_x - 1.5 * lookahead
+        peak_end = obstacle_x + 1.0 * lookahead
+        end = obstacle_x + 4.0 * lookahead
         if x < start or x >= end:
             return 0.0
         if x < peak_start:
