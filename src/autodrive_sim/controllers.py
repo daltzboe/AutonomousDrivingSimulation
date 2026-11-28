@@ -133,6 +133,16 @@ class SteeringObstacleAvoidanceController:
     lateral_clearance_m: float = 0.1
     boundary_margin_m: float = 0.1
     detection_range_m: float = 60.0
+    _selected_offsets: dict[tuple, float] = field(
+        default_factory=dict, init=False, repr=False
+    )
+
+    @staticmethod
+    def _obstacle_key(obstacle) -> tuple:
+        track_id = getattr(obstacle, "track_id", None)
+        if track_id is not None:
+            return ("track", track_id)
+        return ("position", round(obstacle.x, 3), round(obstacle.y, 3))
 
     def __post_init__(self) -> None:
         values = (
@@ -222,18 +232,30 @@ class SteeringObstacleAvoidanceController:
         # Use tracked world positions to retain obstacle awareness while the
         # vehicle is steering. A forward-only range ray can miss an obstacle
         # during a lateral bypass and prematurely cancel the avoidance path.
+        maneuver_tail_m = 4.0 * self.lane_follower.lookahead_m
         relevant = tuple(
             obstacle
             for obstacle in obstacle_list
-            if -1.0 <= obstacle.x - vehicle.x <= self.detection_range_m
+            if -maneuver_tail_m <= obstacle.x - vehicle.x <= self.detection_range_m
             and abs(obstacle.y - road.center_y(obstacle.x))
             <= road.lane_width / 2.0 + obstacle.radius
         )
+        active_keys = {self._obstacle_key(item) for item in relevant}
+        self._selected_offsets = {
+            key: value
+            for key, value in self._selected_offsets.items()
+            if key in active_keys
+        }
         if not relevant:
             return self.lane_follower.control(vehicle, road)
 
         obstacle = min(relevant, key=lambda item: item.x - vehicle.x)
-        offset = self._choose_offset(obstacle, relevant, road, vehicle.y)
+        obstacle_key = self._obstacle_key(obstacle)
+        if obstacle_key not in self._selected_offsets:
+            selected = self._choose_offset(obstacle, relevant, road, vehicle.y)
+            if selected is not None:
+                self._selected_offsets[obstacle_key] = selected
+        offset = self._selected_offsets.get(obstacle_key)
         if offset is None:
             return ObstacleAvoidanceController(
                 lane_follower=self.lane_follower, sensor=self.sensor
@@ -336,7 +358,7 @@ class IntelligentDrivingController:
                 preview_x, nearest.x, avoidance_offset
             )
         )
-        if abs(planned_offset) > 1e-6:
+        if abs(planned_offset) > 0.1:
             self.mode = DrivingMode.AVOID
         else:
             self.mode = DrivingMode.APPROACH
