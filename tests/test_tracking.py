@@ -20,7 +20,7 @@ class ObstacleTrackerTests(unittest.TestCase):
         tracker.update((detection(11.0),), dt=0.1)
         track = tracker.tracks[0]
         self.assertAlmostEqual(track.vx_mps, 10.0)
-        self.assertAlmostEqual(track.predict(2.0)[0], 32.0)
+        self.assertAlmostEqual(track.predict(2.0)[0], 31.0)
 
     def test_associates_same_obstacle_across_frames(self):
         tracker = ObstacleTracker()
