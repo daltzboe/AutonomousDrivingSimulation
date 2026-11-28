@@ -174,6 +174,7 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
       const left = (width - roadWidth) / 2;
       const pxPerMeter = Math.min(roadWidth / (LANE_WIDTH * 4), 20);
       const egoY = height * 0.76;
+      const lanePx = roadWidth / 4;
       const current = stateRef.current;
 
       ctx.clearRect(0, 0, width, height);
@@ -257,7 +258,6 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
         ctx.fillRect(left + 12, y, 2, 8);
         ctx.fillRect(left + roadWidth - 14, y, 2, 8);
       }
-      const lanePx = roadWidth / 4;
       const dashOffset = (current.distance * pxPerMeter * 0.9) % 62;
       ctx.lineWidth = 2;
       for (let lane = 1; lane < 4; lane++) {
