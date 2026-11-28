@@ -358,7 +358,7 @@ class IntelligentDrivingController:
                 preview_x, nearest.x, avoidance_offset
             )
         )
-        if abs(planned_offset) > 0.1:
+        if abs(planned_offset) > 0.2:
             self.mode = DrivingMode.AVOID
         else:
             self.mode = DrivingMode.APPROACH
