@@ -239,12 +239,24 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
         const scale = clamp(0.42 + (height - y) / height * 0.72, 0.35, 1.15);
         for (const side of [-1, 1]) {
           const x = side < 0 ? left - 34 - (i % 3) * 17 : left + roadWidth + 34 + (i % 3) * 17;
-          ctx.fillStyle = "rgba(5, 13, 12, 0.22)";
-          ctx.beginPath(); ctx.ellipse(x + 4 * scale, y + 7 * scale, 15 * scale, 5 * scale, 0, 0, Math.PI * 2); ctx.fill();
-          ctx.fillStyle = i % 2 ? "#29483a" : "#345440";
-          ctx.beginPath(); ctx.arc(x, y, 13 * scale, 0, Math.PI * 2); ctx.fill();
-          ctx.fillStyle = "rgba(111, 143, 104, 0.22)";
-          ctx.beginPath(); ctx.arc(x - 4 * scale, y - 5 * scale, 7 * scale, 0, Math.PI * 2); ctx.fill();
+          // Ground shadow and a short trunk anchor the canopy to the roadside.
+          ctx.fillStyle = "rgba(5, 13, 12, 0.24)";
+          ctx.beginPath(); ctx.ellipse(x + 4 * scale, y + 8 * scale, 16 * scale, 5 * scale, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = "#493d2d";
+          ctx.fillRect(x - 2.2 * scale, y - 1 * scale, 4.4 * scale, 13 * scale);
+          // Overlapping canopy lobes make the trees read as foliage, not dots.
+          const canopy = i % 3 === 0 ? "#2b4938" : i % 3 === 1 ? "#345440" : "#294236";
+          ctx.fillStyle = canopy;
+          ctx.beginPath();
+          ctx.arc(x - 5 * scale, y - 2 * scale, 9 * scale, 0, Math.PI * 2);
+          ctx.arc(x + 5 * scale, y - 2 * scale, 9.5 * scale, 0, Math.PI * 2);
+          ctx.arc(x, y - 8 * scale, 11 * scale, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "rgba(133, 164, 113, 0.20)";
+          ctx.beginPath();
+          ctx.arc(x - 4 * scale, y - 9 * scale, 5.5 * scale, 0, Math.PI * 2);
+          ctx.arc(x + 4 * scale, y - 4 * scale, 4.5 * scale, 0, Math.PI * 2);
+          ctx.fill();
         }
       }
 
