@@ -24,8 +24,8 @@ class ObstaclePerceptionTests(unittest.TestCase):
 
     def test_seed_reproduces_noisy_sensor_sequence(self):
         obstacles = (Obstacle(x=22, y=2), Obstacle(x=35, y=-1))
-        first = ObstaclePerception(seed=123, miss_probability=0).detect(Vehicle(), obstacles)
-        second = ObstaclePerception(seed=123, miss_probability=0).detect(Vehicle(), obstacles)
+        first = ObstaclePerception(seed=123, range_noise_std_m=0.35, bearing_noise_std_deg=1.2, miss_probability=0).detect(Vehicle(), obstacles)
+        second = ObstaclePerception(seed=123, range_noise_std_m=0.35, bearing_noise_std_deg=1.2, miss_probability=0).detect(Vehicle(), obstacles)
         self.assertEqual(first, second)
         self.assertNotAlmostEqual(first[0].range_m, 22, places=4)
 
