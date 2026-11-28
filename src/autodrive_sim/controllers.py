@@ -217,10 +217,9 @@ class SteeringObstacleAvoidanceController:
     def control(self, vehicle: Vehicle, road: Road, obstacles=()) -> ControlCommand:
         """Steer around the nearest feasible obstacle, or safely brake."""
         obstacle_list = tuple(obstacles)
-        scan = self.sensor.scan(vehicle, obstacle_list)
-        if scan.nearest_distance_m > self.detection_range_m:
-            return self.lane_follower.control(vehicle, road)
-
+        # Use tracked world positions to retain obstacle awareness while the
+        # vehicle is steering. A forward-only range ray can miss an obstacle
+        # during a lateral bypass and prematurely cancel the avoidance path.
         relevant = tuple(
             obstacle
             for obstacle in obstacle_list
