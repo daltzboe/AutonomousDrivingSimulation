@@ -8,6 +8,7 @@ from autodrive_sim.controllers import (
 )
 from autodrive_sim.metrics import EvaluationMetrics
 from autodrive_sim.perception import DetectedObstacle, ObstaclePerception
+from autodrive_sim.tracking import ObstacleTrack, ObstacleTracker
 from autodrive_sim.sensors import RangeScan, RangeSensor
 from autodrive_sim.simulator.road import Road
 from autodrive_sim.simulator.simulation import Obstacle, Simulation
@@ -19,6 +20,8 @@ __all__ = [
     "EvaluationMetrics",
     "DetectedObstacle",
     "ObstaclePerception",
+    "ObstacleTrack",
+    "ObstacleTracker",
     "ExperimentConfig",
     "LaneFollowingController",
     "Obstacle",
