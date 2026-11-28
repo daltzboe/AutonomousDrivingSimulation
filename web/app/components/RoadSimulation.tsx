@@ -193,6 +193,32 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
       ctx.fillStyle = horizonGlow;
       ctx.fillRect(0, 0, width, height);
 
+      // Distant rolling terrain breaks up the flat horizon. The silhouettes
+      // stay fixed to the environment while the road and nearby objects move.
+      ctx.fillStyle = "#20372e";
+      ctx.beginPath();
+      ctx.moveTo(0, height * 0.31);
+      ctx.bezierCurveTo(width * 0.16, height * 0.20, width * 0.29, height * 0.34, width * 0.43, height * 0.25);
+      ctx.bezierCurveTo(width * 0.61, height * 0.15, width * 0.75, height * 0.32, width, height * 0.22);
+      ctx.lineTo(width, height * 0.52); ctx.lineTo(0, height * 0.52); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "rgba(91, 119, 88, 0.13)";
+      ctx.beginPath();
+      ctx.moveTo(0, height * 0.39);
+      ctx.bezierCurveTo(width * 0.21, height * 0.30, width * 0.37, height * 0.43, width * 0.58, height * 0.31);
+      ctx.bezierCurveTo(width * 0.77, height * 0.25, width * 0.88, height * 0.40, width, height * 0.34);
+      ctx.lineTo(width, height * 0.58); ctx.lineTo(0, height * 0.58); ctx.closePath(); ctx.fill();
+
+      // Small grass flecks create surface detail without image assets. Their
+      // spacing is deterministic and scrolls gently with route progress.
+      ctx.strokeStyle = "rgba(151, 177, 132, 0.10)";
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 150; i++) {
+        const x = (i * 97 + (i % 7) * 31) % Math.max(1, width);
+        const y = ((i * 61 + current.distance * 0.42) % (height + 10)) - 5;
+        if (x > left - 24 && x < left + roadWidth + 24) continue;
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 2 + (i % 3), y - 3); ctx.stroke();
+      }
+
       // Roadside trees are positioned from route distance, so they scroll
       // naturally with the world rather than looking like a static pattern.
       for (let i = -2; i < 22; i++) {
