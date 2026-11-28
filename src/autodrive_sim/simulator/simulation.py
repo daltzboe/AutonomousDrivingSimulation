@@ -10,6 +10,7 @@ from autodrive_sim.controllers import (
     ObstacleAvoidanceController,
     SteeringObstacleAvoidanceController,
 )
+from autodrive_sim.perception import ObstaclePerception
 from autodrive_sim.metrics import EvaluationMetrics
 from autodrive_sim.telemetry import TelemetryRecorder
 from autodrive_sim.simulator.road import Road
@@ -41,6 +42,7 @@ class Simulation:
         default_factory=LaneFollowingController
     )
     obstacles: tuple[Obstacle, ...] = field(default_factory=tuple)
+    perception: ObstaclePerception = field(default_factory=ObstaclePerception)
     vehicle_radius: float = 0.8
     dt: float = 0.05
     metrics: EvaluationMetrics = field(default_factory=EvaluationMetrics)
@@ -75,7 +77,10 @@ class Simulation:
         selected_command = (
             command if command is not None
             else (
-                self.controller.control(self.vehicle, self.road, self.obstacles)
+                self.controller.control(
+                    self.vehicle, self.road,
+                    self.perception.detect(self.vehicle, self.obstacles),
+                )
                 if isinstance(
                     self.controller,
                     (ObstacleAvoidanceController, SteeringObstacleAvoidanceController, IntelligentDrivingController),
