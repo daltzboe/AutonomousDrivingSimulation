@@ -20,8 +20,8 @@ type Signal = { s: number; phase: "green" | "yellow" | "red" };
 const ROUTE_LENGTH = 2800;
 const LANE_WIDTH = 3.6;
 const COLORS = ["#e1a45e", "#a8b9c9", "#d86f72", "#7f9bd6", "#a5c88d", "#b5a0d6"];
-const SPEED_LIMIT_KMH = 60;
-const SPEED_LIMIT_MS = SPEED_LIMIT_KMH / 3.6;
+const SPEED_LIMIT_MPH = 37;
+const SPEED_LIMIT_MS = SPEED_LIMIT_MPH / 2.236936;
 
 function clamp(v: number, min: number, max: number) { return Math.max(min, Math.min(max, v)); }
 
@@ -220,10 +220,10 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
         ctx.beginPath(); ctx.arc(boardX, boardY, 17, 0, Math.PI * 2); ctx.fill();
         ctx.strokeStyle = "#d84d4d"; ctx.lineWidth = 4; ctx.stroke();
         ctx.fillStyle = "#202b36"; ctx.font = "bold 10px sans-serif"; ctx.textAlign = "center";
-        ctx.fillText(String(SPEED_LIMIT_KMH), boardX, boardY + 4);
+        ctx.fillText(String(SPEED_LIMIT_MPH), boardX, boardY + 4);
       }
       ctx.fillStyle = "#f1d477"; ctx.font = "bold 11px monospace"; ctx.textAlign = "right";
-      ctx.fillText("SPEED LIMIT " + SPEED_LIMIT_KMH + " km/h", width - 14, 42);
+      ctx.fillText("SPEED LIMIT " + SPEED_LIMIT_MPH + " MPH", width - 14, 42);
       // Direction arrows: the left two lanes travel toward the viewer; right two travel away.
       for (let y = -70 + dashOffset; y < height + 90; y += 130) {
         for (let lane = 0; lane < 4; lane++) {
@@ -299,7 +299,7 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
       }
       ctx.fillStyle = "#e5edf4"; ctx.font = "11px monospace"; ctx.textAlign = "left";
       ctx.fillText("4-LANE TWO-WAY ROAD", 14, 22);
-      ctx.fillStyle = "#aab9c7"; ctx.fillText(Math.max(0, ROUTE_LENGTH - current.distance).toFixed(0) + " m TO FINISH", 14, 40);
+      ctx.fillStyle = "#aab9c7"; ctx.fillText((Math.max(0, ROUTE_LENGTH - current.distance) * 3.28084).toFixed(0) + " FT TO FINISH", 14, 40);
       ctx.textAlign = "right"; ctx.fillStyle = "#9fb4c5"; ctx.fillText("← ONCOMING  |  YOUR DIRECTION →", width - 14, 22);
       if (current.crashed) {
         ctx.fillStyle = "#7b1f27cc"; ctx.fillRect(width * 0.18, height * 0.38, width * 0.64, 62);
@@ -688,8 +688,8 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
       <canvas ref={canvasRef} className="road-sim-canvas" aria-label="Animated four-lane autonomous driving preview. The ego vehicle travels forward from start, traffic flows in both directions, and signal and obstacle behavior is visualized." />
       <div className="road-sim-hud">
         <span className="road-hud-status"><i className={hud.status === "DRIVING" ? "road-hud-dot active" : "road-hud-dot"} />{hud.status}</span>
-        <span>{(hud.speed * 3.6).toFixed(0)} km/h</span>
-        <span>{hud.distance.toFixed(0)} / {ROUTE_LENGTH} m</span>
+        <span>{(hud.speed * 2.236936).toFixed(0)} mph</span>
+        <span>{(hud.distance * 3.28084).toFixed(0)} / {(ROUTE_LENGTH * 3.28084).toFixed(0)} ft</span>
         <span>LANE {Math.round(hud.lane) + 1}</span>
         <span className={hud.signal === "RED" ? "signal-red" : hud.signal === "YELLOW" ? "signal-yellow" : "signal-green"}>SIGNAL {hud.signal}</span>
         <span>DECISION {controller === "intelligent" ? hud.mode : "—"}</span><span>CONTACTS {hud.collisions}</span>
