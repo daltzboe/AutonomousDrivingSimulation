@@ -143,6 +143,10 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
       ctx.lineTo(-w * 0.25, -h * 0.04);
       ctx.closePath();
       ctx.fill();
+      // A soft glass reflection gives the windshield a finished, dimensional look.
+      ctx.strokeStyle = "rgba(180, 220, 245, 0.42)";
+      ctx.lineWidth = Math.max(0.7, w * 0.025);
+      ctx.beginPath(); ctx.moveTo(-w * 0.19, -h * 0.25); ctx.lineTo(-w * 0.04, -h * 0.08); ctx.stroke();
       ctx.fillStyle = "#263f50";
       ctx.beginPath();
       ctx.moveTo(-w * 0.25, h * 0.12);
@@ -153,6 +157,13 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
       ctx.fill();
       ctx.fillStyle = "#3c5668";
       ctx.fillRect(-w * 0.23, -h * 0.015, w * 0.46, h * 0.12);
+      // Thin paint highlight follows the hood curve, like a reflected sky strip.
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.24)";
+      ctx.lineWidth = Math.max(0.8, w * 0.03);
+      ctx.beginPath();
+      ctx.moveTo(-w * 0.22, -h * 0.39);
+      ctx.quadraticCurveTo(0, -h * 0.45, w * 0.22, -h * 0.39);
+      ctx.stroke();
       // Side mirrors and front/rear lighting.
       ctx.fillStyle = color;
       ctx.fillRect(-w * 0.49, -h * 0.22, w * 0.12, h * 0.09);
