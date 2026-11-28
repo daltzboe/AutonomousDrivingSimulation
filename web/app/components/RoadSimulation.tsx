@@ -177,24 +177,86 @@ export default function RoadSimulation({ running, controller, scenario, resetTok
       const current = stateRef.current;
 
       ctx.clearRect(0, 0, width, height);
+
+      // Layered roadside environment: a soft horizon glow, varied grass,
+      // and world-anchored trees give the road a stronger sense of scale.
       const grass = ctx.createLinearGradient(0, 0, 0, height);
-      grass.addColorStop(0, "#152c28"); grass.addColorStop(1, "#0d1d1b");
-      ctx.fillStyle = grass; ctx.fillRect(0, 0, width, height);
-      // subtle roadside texture
-      ctx.fillStyle = "#28453b";
-      for (let i = 0; i < 34; i++) {
-        const y = ((i * 91 + current.distance * 2.7) % (height + 30)) - 15;
-        ctx.fillRect(left - 26 - (i % 3) * 13, y, 3, 7);
-        ctx.fillRect(left + roadWidth + 22 + (i % 3) * 13, y, 3, 7);
+      grass.addColorStop(0, "#263c35");
+      grass.addColorStop(0.48, "#172c25");
+      grass.addColorStop(1, "#0b1715");
+      ctx.fillStyle = grass;
+      ctx.fillRect(0, 0, width, height);
+      const horizonGlow = ctx.createRadialGradient(width * 0.5, height * 0.12, 8, width * 0.5, height * 0.12, width * 0.72);
+      horizonGlow.addColorStop(0, "rgba(177, 195, 173, 0.13)");
+      horizonGlow.addColorStop(1, "rgba(177, 195, 173, 0)");
+      ctx.fillStyle = horizonGlow;
+      ctx.fillRect(0, 0, width, height);
+
+      // Roadside trees are positioned from route distance, so they scroll
+      // naturally with the world rather than looking like a static pattern.
+      for (let i = -2; i < 22; i++) {
+        const worldMark = i * 118;
+        const y = egoY - (worldMark - (current.distance % 118)) * pxPerMeter;
+        if (y < -45 || y > height + 45) continue;
+        const scale = clamp(0.42 + (height - y) / height * 0.72, 0.35, 1.15);
+        for (const side of [-1, 1]) {
+          const x = side < 0 ? left - 34 - (i % 3) * 17 : left + roadWidth + 34 + (i % 3) * 17;
+          ctx.fillStyle = "rgba(5, 13, 12, 0.22)";
+          ctx.beginPath(); ctx.ellipse(x + 4 * scale, y + 7 * scale, 15 * scale, 5 * scale, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = i % 2 ? "#29483a" : "#345440";
+          ctx.beginPath(); ctx.arc(x, y, 13 * scale, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = "rgba(111, 143, 104, 0.22)";
+          ctx.beginPath(); ctx.arc(x - 4 * scale, y - 5 * scale, 7 * scale, 0, Math.PI * 2); ctx.fill();
+        }
       }
-      ctx.fillStyle = "#303943";
-      ctx.fillRect(left, 0, roadWidth, height);
-      ctx.fillStyle = "#404a54";
-      ctx.fillRect(left + 4, 0, roadWidth - 8, height);
-      // road shoulder and boundary
-      ctx.fillStyle = "#e0b75d";
+
+      // Shoulder, rumble strip, and asphalt use separate tones for physical
+      // layering. A subtle center-light gradient avoids the flat gray slab.
+      const shoulder = ctx.createLinearGradient(left - 16, 0, left + roadWidth + 16, 0);
+      shoulder.addColorStop(0, "#68716e");
+      shoulder.addColorStop(0.035, "#343b40");
+      shoulder.addColorStop(0.5, "#424951");
+      shoulder.addColorStop(0.965, "#343b40");
+      shoulder.addColorStop(1, "#68716e");
+      ctx.fillStyle = shoulder;
+      ctx.fillRect(left - 16, 0, roadWidth + 32, height);
+      const asphalt = ctx.createLinearGradient(left, 0, left + roadWidth, 0);
+      asphalt.addColorStop(0, "#252d34");
+      asphalt.addColorStop(0.18, "#343c44");
+      asphalt.addColorStop(0.52, "#3b444c");
+      asphalt.addColorStop(0.82, "#343c44");
+      asphalt.addColorStop(1, "#252d34");
+      ctx.fillStyle = asphalt;
+      ctx.fillRect(left + 5, 0, roadWidth - 10, height);
+
+      // Fine asphalt grain and faint longitudinal wear lines (deterministic,
+      // low-contrast, and attached to the moving road surface).
+      ctx.fillStyle = "rgba(205, 215, 221, 0.055)";
+      for (let i = 0; i < 115; i++) {
+        const y = ((i * 47 + current.distance * 3.1) % (height + 12)) - 6;
+        const x = left + 12 + ((i * 73) % Math.max(1, roadWidth - 24));
+        ctx.fillRect(x, y, i % 4 === 0 ? 2 : 1, 1);
+      }
+      ctx.strokeStyle = "rgba(15, 20, 25, 0.22)";
+      ctx.lineWidth = 1;
+      for (let track = 0; track < 4; track++) {
+        const x = left + lanePx * (track + 0.5) + (track % 2 ? 8 : -8);
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
+      }
+
+      // Raised-looking edge lines and reflective rumble-strip ticks.
+      ctx.fillStyle = "#d6dce0";
+      ctx.fillRect(left + 7, 0, 2, height);
+      ctx.fillRect(left + roadWidth - 9, 0, 2, height);
+      ctx.fillStyle = "#d9c36e";
       ctx.fillRect(left + 3, 0, 3, height);
       ctx.fillRect(left + roadWidth - 6, 0, 3, height);
+      ctx.fillStyle = "rgba(225, 232, 234, 0.28)";
+      for (let i = 0; i < 42; i++) {
+        const y = ((i * 37 + current.distance * 2.2) % (height + 18)) - 9;
+        ctx.fillRect(left + 12, y, 2, 8);
+        ctx.fillRect(left + roadWidth - 14, y, 2, 8);
+      }
       const lanePx = roadWidth / 4;
       const dashOffset = (current.distance * pxPerMeter * 0.9) % 62;
       ctx.lineWidth = 2;
