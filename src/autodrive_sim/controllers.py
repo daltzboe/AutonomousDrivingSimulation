@@ -1,6 +1,7 @@
 """Baseline and obstacle-aware controllers for the lightweight simulation."""
 
 from dataclasses import dataclass, field
+from enum import Enum
 import math
 
 from autodrive_sim.simulator.road import Road
@@ -131,7 +132,17 @@ class SteeringObstacleAvoidanceController:
     vehicle_radius_m: float = 0.8
     lateral_clearance_m: float = 0.1
     boundary_margin_m: float = 0.1
-    detection_range_m: float = 30.0
+    detection_range_m: float = 60.0
+    _selected_offsets: dict[tuple, float] = field(
+        default_factory=dict, init=False, repr=False
+    )
+
+    @staticmethod
+    def _obstacle_key(obstacle) -> tuple:
+        track_id = getattr(obstacle, "track_id", None)
+        if track_id is not None:
+            return ("track", track_id)
+        return ("position", round(obstacle.x, 3), round(obstacle.y, 3))
 
     def __post_init__(self) -> None:
         values = (
@@ -154,10 +165,12 @@ class SteeringObstacleAvoidanceController:
 
     def _path_offset(self, x: float, obstacle_x: float, offset: float) -> float:
         lookahead = self.lane_follower.lookahead_m
-        start = obstacle_x - 3.0 * lookahead
-        peak_start = obstacle_x - lookahead
-        peak_end = obstacle_x + 0.5 * lookahead
-        end = obstacle_x + 3.0 * lookahead
+        # Begin the maneuver early and hold the lateral clearance through
+        # the obstacle before smoothly returning to the lane center.
+        start = obstacle_x - 4.0 * lookahead
+        peak_start = obstacle_x - 1.5 * lookahead
+        peak_end = obstacle_x + 1.0 * lookahead
+        end = obstacle_x + 4.0 * lookahead
         if x < start or x >= end:
             return 0.0
         if x < peak_start:
@@ -216,22 +229,33 @@ class SteeringObstacleAvoidanceController:
     def control(self, vehicle: Vehicle, road: Road, obstacles=()) -> ControlCommand:
         """Steer around the nearest feasible obstacle, or safely brake."""
         obstacle_list = tuple(obstacles)
-        scan = self.sensor.scan(vehicle, obstacle_list)
-        if scan.nearest_distance_m > self.detection_range_m:
-            return self.lane_follower.control(vehicle, road)
-
+        # Use tracked world positions to retain obstacle awareness while the
+        # vehicle is steering. A forward-only range ray can miss an obstacle
+        # during a lateral bypass and prematurely cancel the avoidance path.
+        maneuver_tail_m = 4.0 * self.lane_follower.lookahead_m
         relevant = tuple(
             obstacle
             for obstacle in obstacle_list
-            if -1.0 <= obstacle.x - vehicle.x <= self.detection_range_m
+            if -maneuver_tail_m <= obstacle.x - vehicle.x <= self.detection_range_m
             and abs(obstacle.y - road.center_y(obstacle.x))
             <= road.lane_width / 2.0 + obstacle.radius
         )
+        active_keys = {self._obstacle_key(item) for item in relevant}
+        self._selected_offsets = {
+            key: value
+            for key, value in self._selected_offsets.items()
+            if key in active_keys
+        }
         if not relevant:
             return self.lane_follower.control(vehicle, road)
 
         obstacle = min(relevant, key=lambda item: item.x - vehicle.x)
-        offset = self._choose_offset(obstacle, relevant, road, vehicle.y)
+        obstacle_key = self._obstacle_key(obstacle)
+        if obstacle_key not in self._selected_offsets:
+            selected = self._choose_offset(obstacle, relevant, road, vehicle.y)
+            if selected is not None:
+                self._selected_offsets[obstacle_key] = selected
+        offset = self._selected_offsets.get(obstacle_key)
         if offset is None:
             return ObstacleAvoidanceController(
                 lane_follower=self.lane_follower, sensor=self.sensor
@@ -243,4 +267,114 @@ class SteeringObstacleAvoidanceController:
         )
         return self.lane_follower._track_target(
             vehicle, target_y, self.lane_follower.lookahead_m
+        )
+
+
+
+class DrivingMode(str, Enum):
+    """High-level autonomous-driving states exposed for telemetry and tests."""
+
+    CRUISE = "CRUISE"
+    APPROACH = "APPROACH"
+    AVOID = "AVOID"
+    BRAKE = "BRAKE"
+
+
+@dataclass
+class IntelligentDrivingController:
+    """Coordinate obstacle avoidance with speed decisions.
+
+    The existing steering controller remains responsible for path geometry.
+    This layer decides whether to cruise, approach, avoid, or brake, and
+    reduces speed as a relevant obstacle gets closer. It is a deterministic
+    rule-based controller, not a trained machine-learning policy.
+    """
+
+    steering_controller: SteeringObstacleAvoidanceController = field(
+        default_factory=SteeringObstacleAvoidanceController
+    )
+    target_speed_mps: float = 10.0
+    crawl_speed_mps: float = 5.0
+    approach_distance_m: float = 45.0
+    speed_gain: float = 0.35
+    mode: DrivingMode = field(default=DrivingMode.CRUISE, init=False)
+
+    def __post_init__(self) -> None:
+        values = (
+            self.target_speed_mps,
+            self.crawl_speed_mps,
+            self.approach_distance_m,
+            self.speed_gain,
+        )
+        if not all(math.isfinite(value) for value in values):
+            raise ValueError("Decision-controller settings must be finite.")
+        if self.target_speed_mps <= 0 or self.crawl_speed_mps < 0:
+            raise ValueError("Target speed must be positive and crawl speed non-negative.")
+        if self.crawl_speed_mps > self.target_speed_mps:
+            raise ValueError("Crawl speed cannot exceed target speed.")
+        if self.approach_distance_m <= 0 or self.speed_gain <= 0:
+            raise ValueError("Approach distance and speed gain must be positive.")
+
+    def control(self, vehicle: Vehicle, road: Road, obstacles=()) -> ControlCommand:
+        """Select a driving mode and produce a safe normalized control command."""
+        obstacle_list = tuple(
+            obstacle for obstacle in obstacles
+            if obstacle.x >= vehicle.x - 1.0
+            and abs(obstacle.y - road.center_y(obstacle.x))
+            <= road.lane_width / 2.0 + obstacle.radius
+        )
+        nearest = min(
+            obstacle_list,
+            key=lambda obstacle: obstacle.x - vehicle.x,
+            default=None,
+        )
+        base = self.steering_controller.control(vehicle, road, obstacle_list)
+
+        if nearest is None:
+            self.mode = DrivingMode.CRUISE
+            return base
+
+        distance = max(0.0, nearest.x - vehicle.x)
+        if distance > self.approach_distance_m:
+            self.mode = DrivingMode.CRUISE
+            return base
+
+        if base.brake >= 0.5:
+            self.mode = DrivingMode.BRAKE
+            return base
+
+        # Classify avoidance from the planner's selected path, not only the
+        # instantaneous steering delta. During the early smooth transition,
+        # the planned lateral offset can be meaningful before steering differs
+        # substantially from normal lane-following (especially on curved roads).
+        preview_x = vehicle.x + self.steering_controller.lane_follower.lookahead_m
+        avoidance_offset = self.steering_controller._choose_offset(
+            nearest, obstacle_list, road, vehicle.y
+        )
+        planned_offset = (
+            0.0
+            if avoidance_offset is None
+            else self.steering_controller._path_offset(
+                preview_x, nearest.x, avoidance_offset
+            )
+        )
+        if abs(planned_offset) > 0.2:
+            self.mode = DrivingMode.AVOID
+        else:
+            self.mode = DrivingMode.APPROACH
+
+        # Reduce the target speed progressively as the obstacle gets closer.
+        # The path planner still chooses the steering direction; this layer
+        # only adjusts longitudinal control.
+        progress = _clamp(distance / self.approach_distance_m, 0.0, 1.0)
+        desired_speed = self.crawl_speed_mps + (
+            self.target_speed_mps - self.crawl_speed_mps
+        ) * progress
+        speed_error = desired_speed - vehicle.speed
+        throttle = _clamp(speed_error * self.speed_gain, 0.0, 1.0)
+        brake = _clamp(-speed_error * self.speed_gain, 0.0, 1.0)
+        return ControlCommand(
+            throttle=throttle,
+            brake=brake,
+            steering=base.steering,
         )

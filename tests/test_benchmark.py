@@ -125,6 +125,15 @@ class BenchmarkTests(unittest.TestCase):
         self.assertEqual(result["completed"], 1)
         self.assertAlmostEqual(result["route_completion_pct"], 100.0)
 
+    def test_intelligent_controller_avoids_center_obstacle_and_completes(self):
+        result = run_episode(
+            controller_name="intelligent", scenario_name="center"
+        )
+        self.assertEqual(result["collision_events"], 0)
+        self.assertEqual(result["scenario_collision"], 0)
+        self.assertEqual(result["completed"], 1)
+        self.assertAlmostEqual(result["route_completion_pct"], 100.0)
+
     def test_steering_controller_completes_multiple_obstacle_scenario(self):
         result = run_episode(
             controller_name="steering", scenario_name="multiple"

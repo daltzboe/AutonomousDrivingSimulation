@@ -5,10 +5,13 @@ import math
 
 from autodrive_sim.controllers import (
     ControlCommand,
+    IntelligentDrivingController,
     LaneFollowingController,
     ObstacleAvoidanceController,
     SteeringObstacleAvoidanceController,
 )
+from autodrive_sim.perception import ObstaclePerception
+from autodrive_sim.tracking import ObstacleTracker
 from autodrive_sim.metrics import EvaluationMetrics
 from autodrive_sim.telemetry import TelemetryRecorder
 from autodrive_sim.simulator.road import Road
@@ -36,10 +39,12 @@ class Simulation:
 
     road: Road = field(default_factory=Road)
     vehicle: Vehicle = field(default_factory=Vehicle)
-    controller: LaneFollowingController | ObstacleAvoidanceController | SteeringObstacleAvoidanceController = field(
+    controller: LaneFollowingController | ObstacleAvoidanceController | SteeringObstacleAvoidanceController | IntelligentDrivingController = field(
         default_factory=LaneFollowingController
     )
     obstacles: tuple[Obstacle, ...] = field(default_factory=tuple)
+    perception: ObstaclePerception = field(default_factory=ObstaclePerception)
+    tracker: ObstacleTracker = field(default_factory=ObstacleTracker)
     vehicle_radius: float = 0.8
     dt: float = 0.05
     metrics: EvaluationMetrics = field(default_factory=EvaluationMetrics)
@@ -66,22 +71,33 @@ class Simulation:
         self.completed = False
         self.last_command = ControlCommand()
         self._hit_obstacles.clear()
+        self.perception = ObstaclePerception(
+            max_range_m=self.perception.max_range_m,
+            field_of_view_deg=self.perception.field_of_view_deg,
+            range_noise_std_m=self.perception.range_noise_std_m,
+            bearing_noise_std_deg=self.perception.bearing_noise_std_deg,
+            miss_probability=self.perception.miss_probability,
+            seed=self.perception.seed,
+        )
+        self.tracker.reset()
 
     def step(self, command: ControlCommand | None = None) -> None:
         """Advance one fixed simulation step using AI or supplied manual input."""
         if self.completed:
             return
-        selected_command = (
-            command if command is not None
-            else (
-                self.controller.control(self.vehicle, self.road, self.obstacles)
-                if isinstance(
-                    self.controller,
-                    (ObstacleAvoidanceController, SteeringObstacleAvoidanceController),
-                )
-                else self.controller.control(self.vehicle, self.road)
+        if command is not None:
+            selected_command = command
+        elif isinstance(
+            self.controller,
+            (ObstacleAvoidanceController, SteeringObstacleAvoidanceController, IntelligentDrivingController),
+        ):
+            detections = self.perception.detect(self.vehicle, self.obstacles)
+            tracked_obstacles = self.tracker.update(detections, dt=self.dt)
+            selected_command = self.controller.control(
+                self.vehicle, self.road, tracked_obstacles
             )
-        )
+        else:
+            selected_command = self.controller.control(self.vehicle, self.road)
         previous_x = self.vehicle.x
         self.vehicle.step(
             throttle=selected_command.throttle,

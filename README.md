@@ -2,6 +2,10 @@
 
 A UTSA computer science research project for developing and evaluating autonomous-driving controllers in a reproducible simulation. The repository includes a lightweight interactive 2D driving environment, deterministic obstacle scenarios, range-sensor emergency braking, automated tests, and experiment telemetry. CARLA integration and camera-based learning remain planned research stages.
 
+## Project team
+
+Three-person team: **Dalton Opudo, Dexter, and William**. See the [team work plan and contribution checklist](docs/TEAM_PROJECT_PLAN.md) for proposed workstreams, milestones, and each member's contribution log.
+
 ## Research question
 
 How do different autonomous-driving control approaches compare when evaluated on the same simulated routes and scenarios?
@@ -92,7 +96,7 @@ The visual demo starts in autopilot mode. Switch to manual mode to demonstrate s
 
 For a short presentation walkthrough and research-status notes, see [docs/DEMO_GUIDE.md](docs/DEMO_GUIDE.md).
 For the obstacle scenario definitions, experiment commands, and interpretation guide, see [docs/SCENARIO_BENCHMARKS.md](docs/SCENARIO_BENCHMARKS.md).
-For a slide-by-slide class presentation outline and preliminary center-obstacle results, see [docs/CLASS_PRESENTATION.md](docs/CLASS_PRESENTATION.md).
+For a slide-by-slide class presentation outline and preliminary center-obstacle results, see [docs/CLASS_PRESENTATION.md](docs/CLASS_PRESENTATION.md).\nFor a fill-in report structure for the matched three-controller experiment, see [docs/EXPERIMENT_REPORT_TEMPLATE.md](docs/EXPERIMENT_REPORT_TEMPLATE.md).
 For the vehicle equations, pure-pursuit steering model, and metric definitions, see [docs/MODEL_AND_METRICS.md](docs/MODEL_AND_METRICS.md).
 For the planned CARLA/CNN experiment design and fair evaluation protocol, see [docs/RESEARCH_PLAN.md](docs/RESEARCH_PLAN.md).
 
