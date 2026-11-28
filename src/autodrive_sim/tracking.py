@@ -6,7 +6,7 @@ This is a lightweight simulation component, not a production perception stack.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import math
 from typing import Iterable
 
@@ -45,7 +45,7 @@ class ObstacleTracker:
     max_missed_frames: int = 3
     velocity_smoothing: float = 0.25
     max_obstacle_speed_mps: float = 45.0
-    _tracks: list[ObstacleTrack] = None
+    _tracks: list[ObstacleTrack] = field(default_factory=list, init=False, repr=False)
     _next_track_id: int = 1
 
     def __post_init__(self) -> None:
@@ -57,7 +57,6 @@ class ObstacleTracker:
             raise ValueError("velocity_smoothing must be in (0, 1]")
         if not math.isfinite(self.max_obstacle_speed_mps) or self.max_obstacle_speed_mps <= 0:
             raise ValueError("max_obstacle_speed_mps must be positive and finite")
-        self._tracks = []
 
     @property
     def tracks(self) -> tuple[ObstacleTrack, ...]:
