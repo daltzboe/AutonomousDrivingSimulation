@@ -37,9 +37,9 @@ class ObstaclePerception:
 
     max_range_m: float = 60.0
     field_of_view_deg: float = 120.0
-    range_noise_std_m: float = 0.35
-    bearing_noise_std_deg: float = 1.2
-    miss_probability: float = 0.04
+    range_noise_std_m: float = 0.0
+    bearing_noise_std_deg: float = 0.0
+    miss_probability: float = 0.0
     seed: int = 7
     _rng: random.Random = field(init=False, repr=False, compare=False)
 
